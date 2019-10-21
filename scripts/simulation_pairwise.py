@@ -6,6 +6,7 @@ The maximum characters per line is set to be 120.
 import glob
 import os
 import shelve
+import platform
 
 import cv2 as cv
 import matplotlib.pyplot as plt
@@ -18,8 +19,10 @@ from scipy.spatial import Voronoi as scipyVoronoi
 # import scipy.io
 from scipy.spatial import distance as scipy_distance
 
-from scripts.functions_spinning_rafts import draw_rafts_rh_coord, draw_b_field_in_rh_coord, draw_cap_peaks_rh_coord, \
+from functions_spinning_rafts import draw_rafts_rh_coord, draw_b_field_in_rh_coord, draw_cap_peaks_rh_coord, \
     draw_raft_orientations_rh_coord, draw_raft_num_rh_coord, draw_frame_info
+
+#import scripts.functions_spinning_rafts as fsr
 
 
 projectDir = "D:\\simulationFolder\\spinning_rafts_simulation_code"  # os.getcwd()
@@ -27,6 +30,16 @@ capSym6Dir = projectDir + "\\2019-05-13_capillaryForceCalculations-sym6"
 capSym4Dir = projectDir + "\\2019-03-29_capillaryForceCalculations"
 os.chdir("..")
 outputDir = os.getcwd()
+
+if platform.node() == 'NOTESIT71' and platform.system() == 'Linux':
+    projectDir = r'/media/wwang/shared/spinning_rafts_simulation/spinning_rafts_sim2'
+    os.chdir(projectDir)
+    capSym6Dir = projectDir + '/2019-05-13_capillaryForceCalculations-sym6'
+    capSym4Dir = projectDir + '/2019-03-29_capillaryForceCalculations'
+    os.chdir('..')
+    outputDir = os.getcwd()
+
+
 
 
 # %% load capillary force and torque
@@ -600,7 +613,7 @@ for magneticFieldRotationRPS in np.arange(-20, -22, -1):
 
     if outputVideo == 1:
         outputVideoName = outputFilename + '.mp4'
-        fourcc = cv.VideoWriter_fourcc(*'DIVX')
+        fourcc = cv.VideoWriter_fourcc(*'mp4v')
         frameW, frameH, _ = blankFrameBGR.shape
         videoOut = cv.VideoWriter(outputVideoName, fourcc, outputFrameRate, (frameH, frameW), 1)
 

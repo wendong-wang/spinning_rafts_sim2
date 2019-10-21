@@ -42,6 +42,7 @@ def draw_rafts_rh_coord(img_bgr, rafts_loc, rafts_radii, num_of_rafts):
     :param int num_of_rafts: num of rafts
     :return: bgr image file
     """
+
     circle_thickness = int(2)
     circle_color = (0, 0, 255)  # openCV: BGR
 
