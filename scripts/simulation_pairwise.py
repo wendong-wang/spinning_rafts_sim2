@@ -7,6 +7,7 @@ import glob
 import os
 import shelve
 import platform
+import datetime
 
 import cv2 as cv
 import matplotlib.pyplot as plt
@@ -35,8 +36,7 @@ import scripts.functions_spinning_rafts as fsr
 scriptDir = os.path.join(projectDir, "scripts")
 capSym6Dir = os.path.join(projectDir, '2019-05-13_capillaryForceCalculations-sym6')
 capSym4Dir = os.path.join(projectDir, '2019-03-29_capillaryForceCalculations')
-os.chdir('..')
-outputDir = os.getcwd()  # the output folder is outside the git repository
+dataDir = os.path.join(projectDir, 'data')
 
 
 # %% load capillary force and torque
@@ -233,7 +233,12 @@ lubC = - RforCoeff * lubG
 # ax.legend()
 
 # %% simulation of the pairwise
-os.chdir(outputDir)
+os.chdir(dataDir)
+now = datetime.datetime.now()
+outputFolderName = now.strftime("%Y-%m-%d_%H-%M-%S")
+if not os.path.isdir(outputFolderName):
+    os.mkdir(outputFolderName)
+os.chdir(outputFolderName)
 
 listOfVariablesToSave = ['numOfRafts', 'magneticFieldStrength', 'magneticFieldRotationRPS', 'omegaBField',
                          'timeStepSize', 'numOfTimeSteps',
@@ -683,4 +688,3 @@ for magneticFieldRotationRPS in np.arange(-20, -22, -1):
 
 #    lastPositionOfPreviousSpinSpeeds[:,:] = raftLocations[:,currentStepNum,:]
 #    lastOmegaOfPreviousSpinSpeeds[:] = raftRotationSpeedsInRad[:, currentStepNum]
-

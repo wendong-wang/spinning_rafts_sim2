@@ -7,6 +7,7 @@ The maximum characters per line is set to be 120.
 import glob
 import os
 import shelve
+import platform
 
 import cv2 as cv
 import matplotlib.pyplot as plt
@@ -18,19 +19,29 @@ from scipy.integrate import solve_ivp
 from scipy.spatial import Voronoi as scipyVoronoi
 # import scipy.io
 from scipy.spatial import distance as scipy_distance
-from scripts.functions_spinning_rafts import fft_general, adjust_phases
 
 
-projectDir = "D:\\simulationFolder\\spinning_rafts_simulation_code"  # os.getcwd()
-os.chdir("..")
-outputDir = os.getcwd()
+if platform.node() == 'NOTESIT43' and platform.system() == 'Windows':
+    projectDir = "D:\\simulationFolder\\spinning_rafts_sim2"
+elif platform.node() == 'NOTESIT71' and platform.system() == 'Linux':
+    projectDir = r'/media/wwang/shared/spinning_rafts_simulation/spinning_rafts_sim2'
+else:
+    projectDir = os.getcwd()
+
+if projectDir != os.getcwd():
+    os.chdir(projectDir)
+
+import scripts.functions_spinning_rafts as fsr
+
+dataDir = os.path.join(projectDir, 'data')
 
 # %% load simulated data in one main folder
-os.chdir(outputDir)
-rootFolderTreeGen = os.walk(outputDir)
+os.chdir(dataDir)
+
+rootFolderTreeGen = os.walk(dataDir)
 _, mainFolders, _ = next(rootFolderTreeGen)
 
-mainFolderID = 40
+mainFolderID = 0
 os.chdir(mainFolders[mainFolderID])
 
 dataFileList = glob.glob('*.dat')
@@ -61,7 +72,7 @@ for dataID in range(len(dataFileList)):
 timeStepSize = mainDataList[0]['timeStepSize']  # unit: s, assuming the same for all data in the list
 samplingRate = 1 / timeStepSize  # unit fps
 diameterOfRaftInMicron = 300  # micron
-startOfSamplingStep = 9000  # check the variable mainDataList[0]['numOfTimeSteps']
+startOfSamplingStep = 0  # check the variable mainDataList[0]['numOfTimeSteps']
 # diameterOfRaftInPixel = 146 # pixel 124 for 2x mag, 146 for 2.5x object,
 # scaleBar = diameterOfRaftInMicron/diameterOfRaftInPixel # micron per pixel.
 # 300 micron = 124 pixel -> 2x objective, 300 micron = 146 pixel -> 2.5x objective
@@ -90,21 +101,21 @@ for dataID in range(len(mainDataList)):
     distancesMean = distances.mean()  #
     distancesSTD = np.std(distances)
 
-    fDistances, pDistances = fft_general(samplingRate, distances)
+    fDistances, pDistances = fsr.fft_general(samplingRate, distances)
 
     phase1To2 = np.arctan2(vector1To2[:, 1], vector1To2[:, 0]) * 180 / np.pi
     # note that the sign of y is flipped, so as to keep the coordination in the right-handed coordinate
-    phasesAjusted = adjust_phases(phase1To2)
+    phasesAjusted = fsr.adjust_phases(phase1To2)
     orbitingSpeeds = np.gradient(phasesAjusted) * samplingRate / 180 * np.pi
     orbitingSpeedsMean = orbitingSpeeds.mean()
     orbitingSpeedsSTD = orbitingSpeeds.std()
 
-    fOrbitingSpeeds, pOrbitingSpeeds = fft_general(samplingRate, orbitingSpeeds)
+    fOrbitingSpeeds, pOrbitingSpeeds = fsr.fft_general(samplingRate, orbitingSpeeds)
 
     raft1Orientations = mainDataList[dataID]['raftOrientations'][0, startOfSamplingStep:]
     raft2Orientations = mainDataList[dataID]['raftOrientations'][1, startOfSamplingStep:]
-    raft1OrientationsAdjusted = adjust_phases(raft1Orientations)
-    raft2OrientationsAdjusted = adjust_phases(raft2Orientations)
+    raft1OrientationsAdjusted = fsr.adjust_phases(raft1Orientations)
+    raft2OrientationsAdjusted = fsr.adjust_phases(raft2Orientations)
     raft1SpinSpeeds = np.gradient(raft1OrientationsAdjusted) * samplingRate / 360
     raft2SpinSpeeds = np.gradient(raft2OrientationsAdjusted) * samplingRate / 360
     raft1SpinSpeedsMean = raft1SpinSpeeds.mean()
@@ -112,8 +123,8 @@ for dataID in range(len(mainDataList)):
     raft1SpinSpeedsSTD = raft1SpinSpeeds.std()
     raft2SpinSpeedsSTD = raft2SpinSpeeds.std()
 
-    fRaft1SpinSpeeds, pRaft1SpinSpeeds = fft_general(samplingRate, raft1SpinSpeeds)
-    fRaft2SpinSpeeds, pRaft2SpinSpeeds = fft_general(samplingRate, raft2SpinSpeeds)
+    fRaft1SpinSpeeds, pRaft1SpinSpeeds = fsr.fft_general(samplingRate, raft1SpinSpeeds)
+    fRaft2SpinSpeeds, pRaft2SpinSpeeds = fsr.fft_general(samplingRate, raft2SpinSpeeds)
 
     # store in dataframes
     dfMainData.loc[dataID, 'mainFolderName'] = mainFolders[mainFolderID]
@@ -166,6 +177,7 @@ dfFFTRaft1Spin = dfFFTRaft1Spin.reindex(sorted(dfFFTRaft1Spin.columns, reverse=T
 dfFFTRaft2Spin = dfFFTRaft2Spin.reindex(sorted(dfFFTRaft2Spin.columns, reverse=True), axis='columns')
 
 dfMainData.plot.scatter(x='magneticFieldRotationRPS', y='distancesMean')
+plt.show()
 
 # output to csv files
 mainDataFileName = mainFolders[mainFolderID]
@@ -189,15 +201,20 @@ dfFFTRaft2Spin.to_csv('fft_' + BFieldStrength + '_raft2SpinSpeeds.csv', index=Fa
 # plt.show()
 
 #%% load one specific simulated data and look at the results
-dataID = 20
+dataID = 0
 
 variableListFromSimulatedFile = list(mainDataList[dataID].keys())
+
+# # just to avoid Pycharm scolding me for using undefined variables
+# raftLocations = []
+# magneticFieldRotationRPS = []
+# raftOrientations = []
 
 for key, value in mainDataList[dataID].items():  # loop through key-value pairs of python dictionary
     globals()[key] = value
 
 # data treatment
-startOfSamplingStep = 9000  # 0, 10000
+startOfSamplingStep = 0  # 0, 10000
 samplingRate = 1 / timeStepSize  #
 raft1Locations = raftLocations[0, startOfSamplingStep:, :]  # unit: micron
 raft2Locations = raftLocations[1, startOfSamplingStep:, :]  # unit: micron
@@ -209,20 +226,20 @@ distancesSTD = distances.std()
 
 distancesDownSampled = distances[::100]
 
-fDistances, pDistances = fft_general(samplingRate, distances)
+fDistances, pDistances = fsr.fft_general(samplingRate, distances)
 
 phase1To2 = np.arctan2(vector1To2[:, 1], vector1To2[:, 0]) * 180 / np.pi
-phasesAjusted = adjust_phases(phase1To2)
+phasesAjusted = fsr.adjust_phases(phase1To2)
 orbitingSpeeds = np.gradient(phasesAjusted) * samplingRate / 180 * np.pi
 orbitingSpeedsMean = orbitingSpeeds.mean()
 orbitingSpeedsSTD = orbitingSpeeds.std()
 
-fOrbitingSpeeds, pOrbitingSpeeds = fft_general(samplingRate, orbitingSpeeds)
+fOrbitingSpeeds, pOrbitingSpeeds = fsr.fft_general(samplingRate, orbitingSpeeds)
 
 raft1Orientations = raftOrientations[0, startOfSamplingStep:]
 raft2Orientations = raftOrientations[1, startOfSamplingStep:]
-raft1OrientationsAdjusted = adjust_phases(raft1Orientations)
-raft2OrientationsAdjusted = adjust_phases(raft2Orientations)
+raft1OrientationsAdjusted = fsr.adjust_phases(raft1Orientations)
+raft2OrientationsAdjusted = fsr.adjust_phases(raft2Orientations)
 raft1SpinSpeeds = np.gradient(raft1OrientationsAdjusted) * samplingRate / 360  # unit: rps
 raft2SpinSpeeds = np.gradient(raft2OrientationsAdjusted) * samplingRate / 360  # unit: rps
 raft1SpinSpeedsMean = raft1SpinSpeeds.mean()
@@ -230,8 +247,8 @@ raft2SpinSpeedsMean = raft2SpinSpeeds.mean()
 raft1SpinSpeedsSTD = raft1SpinSpeeds.std()
 raft2SpinSpeedsSTD = raft2SpinSpeeds.std()
 
-fRaft1SpinSpeeds, pRaft1SpinSpeeds = fft_general(samplingRate, raft1SpinSpeeds)
-fRaft2SpinSpeeds, pRaft2SpinSpeeds = fft_general(samplingRate, raft2SpinSpeeds)
+fRaft1SpinSpeeds, pRaft1SpinSpeeds = fsr.fft_general(samplingRate, raft1SpinSpeeds)
+fRaft2SpinSpeeds, pRaft2SpinSpeeds = fsr.fft_general(samplingRate, raft2SpinSpeeds)
 
 # plotting analyzed results
 # comparison of force terms
@@ -369,8 +386,8 @@ plt.show()
 fig, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(raft1SpinSpeeds, '-', label='raft 1 spin speeds')
 ax.plot(raft2SpinSpeeds, '-', label='raft 2 spin speeds')
-ax.plot(np.deg2rad(adjust_phases(raftOrientations[0,startOfSamplingStep+1:]) -
-                   adjust_phases(raftOrientations[0,startOfSamplingStep:-1]))/timeStepSize/(2*np.pi), '-')
+ax.plot(np.deg2rad(fsr.adjust_phases(raftOrientations[0,startOfSamplingStep+1:]) -
+                   fsr.adjust_phases(raftOrientations[0,startOfSamplingStep:-1]))/timeStepSize/(2*np.pi), '-')
 ax.set_xlabel('Steps(Time)', size=20)
 ax.set_ylabel('spin speeds (rps)', size=20)
 ax.set_title('Simulation at {}rps'.format(magneticFieldRotationRPS))
