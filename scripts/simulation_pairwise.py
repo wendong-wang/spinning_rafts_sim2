@@ -19,27 +19,24 @@ from scipy.spatial import Voronoi as scipyVoronoi
 # import scipy.io
 from scipy.spatial import distance as scipy_distance
 
-from functions_spinning_rafts import draw_rafts_rh_coord, draw_b_field_in_rh_coord, draw_cap_peaks_rh_coord, \
-    draw_raft_orientations_rh_coord, draw_raft_num_rh_coord, draw_frame_info
 
-#import scripts.functions_spinning_rafts as fsr
-
-
-projectDir = "D:\\simulationFolder\\spinning_rafts_simulation_code"  # os.getcwd()
-capSym6Dir = projectDir + "\\2019-05-13_capillaryForceCalculations-sym6"
-capSym4Dir = projectDir + "\\2019-03-29_capillaryForceCalculations"
-os.chdir("..")
-outputDir = os.getcwd()
-
-if platform.node() == 'NOTESIT71' and platform.system() == 'Linux':
+if platform.node() == 'NOTESIT43' and platform.system() == 'Windows':
+    projectDir = "D:\\simulationFolder\\spinning_rafts_sim2"
+elif platform.node() == 'NOTESIT71' and platform.system() == 'Linux':
     projectDir = r'/media/wwang/shared/spinning_rafts_simulation/spinning_rafts_sim2'
+else:
+    projectDir = os.getcwd()
+
+if projectDir != os.getcwd():
     os.chdir(projectDir)
-    capSym6Dir = projectDir + '/2019-05-13_capillaryForceCalculations-sym6'
-    capSym4Dir = projectDir + '/2019-03-29_capillaryForceCalculations'
-    os.chdir('..')
-    outputDir = os.getcwd()
 
+import scripts.functions_spinning_rafts as fsr
 
+scriptDir = os.path.join(projectDir, "scripts")
+capSym6Dir = os.path.join(projectDir, '2019-05-13_capillaryForceCalculations-sym6')
+capSym4Dir = os.path.join(projectDir, '2019-03-29_capillaryForceCalculations')
+os.chdir('..')
+outputDir = os.getcwd()  # the output folder is outside the git repository
 
 
 # %% load capillary force and torque
@@ -235,7 +232,7 @@ lubC = - RforCoeff * lubG
 # ax.plot(sumOfAllForces, label = 'sum of angle-averaged magnetic and capillary forces and hydrodynamic force ')
 # ax.legend()
 
-#%% simulation of the pairwise
+# %% simulation of the pairwise
 os.chdir(outputDir)
 
 listOfVariablesToSave = ['numOfRafts', 'magneticFieldStrength', 'magneticFieldRotationRPS', 'omegaBField',
@@ -636,28 +633,29 @@ for magneticFieldRotationRPS in np.arange(-20, -22, -1):
 
         # draw for current frame
         if (outputImageSeq == 1 or outputVideo == 1) and (currentStepNum % intervalBetweenFrames == 0):
-            currentFrameBGR = draw_rafts_rh_coord(blankFrameBGR.copy(),
-                                                  np.int64(raftLocations[:, currentStepNum, :] / scaleBar),
-                                                  np.int64(raftRadii / scaleBar), numOfRafts)
-            currentFrameBGR = draw_b_field_in_rh_coord(currentFrameBGR, magneticFieldDirection)
-            currentFrameBGR = draw_cap_peaks_rh_coord(currentFrameBGR,
+            currentFrameBGR = fsr.draw_rafts_rh_coord(blankFrameBGR.copy(),
                                                       np.int64(raftLocations[:, currentStepNum, :] / scaleBar),
-                                                      raftOrientations[:, currentStepNum], 6, capillaryPeakOffset,
                                                       np.int64(raftRadii / scaleBar), numOfRafts)
-            currentFrameBGR = draw_raft_orientations_rh_coord(currentFrameBGR,
-                                                              np.int64(raftLocations[:, currentStepNum, :] / scaleBar),
-                                                              raftOrientations[:, currentStepNum],
-                                                              np.int64(raftRadii / scaleBar), numOfRafts)
-            currentFrameBGR = draw_raft_num_rh_coord(currentFrameBGR,
-                                                     np.int64(raftLocations[:, currentStepNum, :] / scaleBar),
-                                                     numOfRafts)
+            currentFrameBGR = fsr.draw_b_field_in_rh_coord(currentFrameBGR, magneticFieldDirection)
+            currentFrameBGR = fsr.draw_cap_peaks_rh_coord(currentFrameBGR,
+                                                          np.int64(raftLocations[:, currentStepNum, :] / scaleBar),
+                                                          raftOrientations[:, currentStepNum], 6, capillaryPeakOffset,
+                                                          np.int64(raftRadii / scaleBar), numOfRafts)
+            currentFrameBGR = fsr.draw_raft_orientations_rh_coord(currentFrameBGR,
+                                                                  np.int64(
+                                                                      raftLocations[:, currentStepNum, :] / scaleBar),
+                                                                  raftOrientations[:, currentStepNum],
+                                                                  np.int64(raftRadii / scaleBar), numOfRafts)
+            currentFrameBGR = fsr.draw_raft_num_rh_coord(currentFrameBGR,
+                                                         np.int64(raftLocations[:, currentStepNum, :] / scaleBar),
+                                                         numOfRafts)
 
             vector1To2SingleFrame = raftLocations[1, currentStepNum, :] - raftLocations[0, currentStepNum, :]
             distanceSingleFrame = np.sqrt(vector1To2SingleFrame[0] ** 2 + vector1To2SingleFrame[1] ** 2)
             phase1To2SingleFrame = np.arctan2(vector1To2SingleFrame[1], vector1To2SingleFrame[0]) * 180 / np.pi
-            currentFrameBGR = draw_frame_info(currentFrameBGR, currentStepNum, distanceSingleFrame,
-                                              raftOrientations[0, currentStepNum], magneticFieldDirection,
-                                              raftRelativeOrientationInDeg[0, 1, currentStepNum])
+            currentFrameBGR = fsr.draw_frame_info(currentFrameBGR, currentStepNum, distanceSingleFrame,
+                                                  raftOrientations[0, currentStepNum], magneticFieldDirection,
+                                                  raftRelativeOrientationInDeg[0, 1, currentStepNum])
 
             if outputImageSeq == 1:
                 outputImageName = outputFilename + '_' + str(currentStepNum + 1).zfill(7) + '.jpg'
@@ -685,5 +683,3 @@ for magneticFieldRotationRPS in np.arange(-20, -22, -1):
 
 #    lastPositionOfPreviousSpinSpeeds[:,:] = raftLocations[:,currentStepNum,:]
 #    lastOmegaOfPreviousSpinSpeeds[:] = raftRotationSpeedsInRad[:, currentStepNum]
-
-
