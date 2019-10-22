@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Apr  9 16:08:51 2019
-
-@author: wwang
+This is for the simulation of many rafts
+The maximum characters per line is set to be 120.
 """
 import numpy as np
 import pandas as pd

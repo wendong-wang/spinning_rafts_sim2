@@ -2,33 +2,9 @@
 The function definition files.
 
 """
-
 import cv2 as cv
 import numpy as np
 from scipy.spatial import Voronoi as scipyVoronoi
-
-
-def draw_rafts_lh_coord(img_bgr, rafts_loc, rafts_radii, num_of_rafts):
-    """
-    draw circles in the left-handed coordinate system of openCV
-    positive x is pointing right
-    positive y is pointing down
-    :param numpy array img_bgr: input bgr image in numpy array
-    :param numpy array rafts_loc: locations of the rafts
-    :param numpy array rafts_radii: radii of the rafts
-    :param int num_of_rafts: num of rafts
-    :return: bgr image file
-    """
-
-    circle_thickness = int(2)
-    circle_color = (0, 0, 255)  # openCV: BGR
-
-    output_img = img_bgr
-    for raft_id in np.arange(num_of_rafts):
-        output_img = cv.circle(output_img, (rafts_loc[raft_id, 0], rafts_loc[raft_id, 1]), rafts_radii[raft_id],
-                               circle_color, circle_thickness)
-
-    return output_img
 
 
 def draw_rafts_rh_coord(img_bgr, rafts_loc, rafts_radii, num_of_rafts):
@@ -62,6 +38,29 @@ def draw_rafts_rh_coord(img_bgr, rafts_loc, rafts_radii, num_of_rafts):
     return output_img
 
 
+def draw_rafts_lh_coord(img_bgr, rafts_loc, rafts_radii, num_of_rafts):
+    """
+    draw circles in the left-handed coordinate system of openCV
+    positive x is pointing right
+    positive y is pointing down
+    :param numpy array img_bgr: input bgr image in numpy array
+    :param numpy array rafts_loc: locations of the rafts
+    :param numpy array rafts_radii: radii of the rafts
+    :param int num_of_rafts: num of rafts
+    :return: bgr image file
+    """
+
+    circle_thickness = int(2)
+    circle_color = (0, 0, 255)  # openCV: BGR
+
+    output_img = img_bgr
+    for raft_id in np.arange(num_of_rafts):
+        output_img = cv.circle(output_img, (rafts_loc[raft_id, 0], rafts_loc[raft_id, 1]), rafts_radii[raft_id],
+                               circle_color, circle_thickness)
+
+    return output_img
+
+
 def draw_b_field_in_rh_coord(img_bgr, b_orient):
     """
     draw the direction of B-field in right-handed xy coordinate
@@ -78,32 +77,6 @@ def draw_b_field_in_rh_coord(img_bgr, b_orient):
     line_end = (int(width // 2 + np.cos(b_orient * np.pi / 180) * line_length),
                 height - int(height // 2 + np.sin(b_orient * np.pi / 180) * line_length))
     output_img = cv.line(output_img, line_start, line_end, (0, 0, 0), 1)
-    return output_img
-
-
-def draw_raft_orientations_lh_coord(img_bgr, rafts_loc, rafts_ori, rafts_radii, num_of_rafts):
-    """
-    draw lines to indicate the dipole orientation of each raft,
-    as indicated by rafts_ori, in left-handed coordinate system
-    :param numpy array img_bgr: the image in bgr format
-    :param numpy array rafts_loc: the locations of rafts
-    :param numpy array rafts_ori: the orientation of rafts, in deg
-    :param numpy array rafts_radii: radii of the rafts
-    :param int num_of_rafts: num of rafts
-    :return: bgr image file
-    """
-
-    line_thickness = int(2)
-    line_color = (255, 0, 0)
-
-    output_img = img_bgr
-    for raft_id in np.arange(num_of_rafts):
-        line_start = (rafts_loc[raft_id, 0], rafts_loc[raft_id, 1])
-        # note that the sign in front of the sine term is "-"
-        line_end = (int(rafts_loc[raft_id, 0] + np.cos(rafts_ori[raft_id] * np.pi / 180) * rafts_radii[raft_id]),
-                    int(rafts_loc[raft_id, 1] - np.sin(rafts_ori[raft_id] * np.pi / 180) * rafts_radii[raft_id]))
-        output_img = cv.line(output_img, line_start, line_end, line_color, line_thickness)
-
     return output_img
 
 
@@ -136,35 +109,29 @@ def draw_raft_orientations_rh_coord(img_bgr, rafts_loc, rafts_ori, rafts_radii, 
     return output_img
 
 
-def draw_cap_peaks_lh_coord(img_bgr, rafts_loc, rafts_ori, raft_sym, cap_offset, rafts_radii, num_of_rafts):
+def draw_raft_orientations_lh_coord(img_bgr, rafts_loc, rafts_ori, rafts_radii, num_of_rafts):
     """
-    draw lines to indicate the capillary peak positions
-    in left-handed coordinate system
+    draw lines to indicate the dipole orientation of each raft,
+    as indicated by rafts_ori, in left-handed coordinate system
     :param numpy array img_bgr: the image in bgr format
     :param numpy array rafts_loc: the locations of rafts
     :param numpy array rafts_ori: the orientation of rafts, in deg
-    :param int raft_sym: the symmetry of raft
-    :param int cap_offset: the angle between the dipole direction
-    and the first capillary peak, in deg
     :param numpy array rafts_radii: radii of the rafts
     :param int num_of_rafts: num of rafts
-    :return bgr image file
+    :return: bgr image file
     """
 
     line_thickness = int(2)
-    line_color2 = (0, 255, 0)
-    cap_gap = 360 / raft_sym
+    line_color = (255, 0, 0)
 
     output_img = img_bgr
     for raft_id in np.arange(num_of_rafts):
-        for capID in np.arange(raft_sym):
-            line_start = (rafts_loc[raft_id, 0], rafts_loc[raft_id, 1])
-            line_end = (int(rafts_loc[raft_id, 0] + np.cos((rafts_ori[raft_id] + cap_offset + capID * cap_gap)
-                                                           * np.pi / 180) * rafts_radii[raft_id]),
-                        int(rafts_loc[raft_id, 1] - np.sin((rafts_ori[raft_id] + cap_offset + capID * cap_gap)
-                                                           * np.pi / 180) * rafts_radii[raft_id]))
-            # note that the sign in front of the sine term is "-"
-            output_img = cv.line(output_img, line_start, line_end, line_color2, line_thickness)
+        line_start = (rafts_loc[raft_id, 0], rafts_loc[raft_id, 1])
+        # note that the sign in front of the sine term is "-"
+        line_end = (int(rafts_loc[raft_id, 0] + np.cos(rafts_ori[raft_id] * np.pi / 180) * rafts_radii[raft_id]),
+                    int(rafts_loc[raft_id, 1] - np.sin(rafts_ori[raft_id] * np.pi / 180) * rafts_radii[raft_id]))
+        output_img = cv.line(output_img, line_start, line_end, line_color, line_thickness)
+
     return output_img
 
 
@@ -201,28 +168,35 @@ def draw_cap_peaks_rh_coord(img_bgr, rafts_loc, rafts_ori, raft_sym, cap_offset,
             output_img = cv.line(output_img, line_start, line_end, line_color2, line_thickness)
     return output_img
 
-
-def draw_raft_number(img_bgr, rafts_loc, num_of_rafts):
+def draw_cap_peaks_lh_coord(img_bgr, rafts_loc, rafts_ori, raft_sym, cap_offset, rafts_radii, num_of_rafts):
     """
-    draw the raft number at the center of the rafts
-    in the left-handed coordinate
+    draw lines to indicate the capillary peak positions
+    in left-handed coordinate system
     :param numpy array img_bgr: the image in bgr format
     :param numpy array rafts_loc: the locations of rafts
+    :param numpy array rafts_ori: the orientation of rafts, in deg
+    :param int raft_sym: the symmetry of raft
+    :param int cap_offset: the angle between the dipole direction
+    and the first capillary peak, in deg
+    :param numpy array rafts_radii: radii of the rafts
     :param int num_of_rafts: num of rafts
-    :return: bgr image file
+    :return bgr image file
     """
 
-    font_face = cv.FONT_HERSHEY_SIMPLEX
-    font_scale = 0.5
-    font_color = (0, 0, 0)  # BGR
-    font_thickness = 2
+    line_thickness = int(2)
+    line_color2 = (0, 255, 0)
+    cap_gap = 360 / raft_sym
+
     output_img = img_bgr
     for raft_id in np.arange(num_of_rafts):
-        text_size, _ = cv.getTextSize(str(raft_id + 1), font_face, font_scale, font_thickness)
-        output_img = cv.putText(output_img, str(raft_id + 1),
-                                (rafts_loc[raft_id, 0] - text_size[0] // 2, rafts_loc[raft_id, 1] + text_size[1] // 2),
-                                font_face, font_scale, font_color, font_thickness, cv.LINE_AA)
-
+        for capID in np.arange(raft_sym):
+            line_start = (rafts_loc[raft_id, 0], rafts_loc[raft_id, 1])
+            line_end = (int(rafts_loc[raft_id, 0] + np.cos((rafts_ori[raft_id] + cap_offset + capID * cap_gap)
+                                                           * np.pi / 180) * rafts_radii[raft_id]),
+                        int(rafts_loc[raft_id, 1] - np.sin((rafts_ori[raft_id] + cap_offset + capID * cap_gap)
+                                                           * np.pi / 180) * rafts_radii[raft_id]))
+            # note that the sign in front of the sine term is "-"
+            output_img = cv.line(output_img, line_start, line_end, line_color2, line_thickness)
     return output_img
 
 
@@ -247,6 +221,30 @@ def draw_raft_num_rh_coord(img_bgr, rafts_loc, num_of_rafts):
         text_size, _ = cv.getTextSize(str(raft_id + 1), font_face, font_scale, font_thickness)
         output_img = cv.putText(output_img, str(raft_id + 1), (rafts_loc[raft_id, 0] - text_size[0] // 2,
                                                                height - (rafts_loc[raft_id, 1] + text_size[1] // 2)),
+                                font_face, font_scale, font_color, font_thickness, cv.LINE_AA)
+
+    return output_img
+
+
+def draw_raft_number_lh_coord(img_bgr, rafts_loc, num_of_rafts):
+    """
+    draw the raft number at the center of the rafts
+    in the left-handed coordinate
+    :param numpy array img_bgr: the image in bgr format
+    :param numpy array rafts_loc: the locations of rafts
+    :param int num_of_rafts: num of rafts
+    :return: bgr image file
+    """
+
+    font_face = cv.FONT_HERSHEY_SIMPLEX
+    font_scale = 0.5
+    font_color = (0, 0, 0)  # BGR
+    font_thickness = 2
+    output_img = img_bgr
+    for raft_id in np.arange(num_of_rafts):
+        text_size, _ = cv.getTextSize(str(raft_id + 1), font_face, font_scale, font_thickness)
+        output_img = cv.putText(output_img, str(raft_id + 1),
+                                (rafts_loc[raft_id, 0] - text_size[0] // 2, rafts_loc[raft_id, 1] + text_size[1] // 2),
                                 font_face, font_scale, font_color, font_thickness, cv.LINE_AA)
 
     return output_img
@@ -305,6 +303,62 @@ def draw_frame_info(img_bgr, time_step_num, distance, orientation, b_field_direc
     # output_img = cv.putText(output_img, str('cap_torque: {}'.format(cap_torque)),
     #                         (10, 10 + (text_size[1] + line_padding) * 10),
     #                         font_face, font_scale,font_color,font_thickness,cv.LINE_AA)
+
+    return output_img
+
+
+def draw_frame_info_many(img_bgr, time_step_num, hex_order_avg_norm, hex_order_norm_avg, entropy_by_distances):
+    """
+    draw information on the output frames
+    :param numpy array img_bgr: input bgr image
+    :param int time_step_num: current step number
+    :param float hex_order_avg_norm: the norm of the average of the hexatic order parameter
+    :param float hex_order_norm_avg: the average of the norm of the hexatic order parameter
+    :param float entropy_by_distances: entropy by neighbor distances
+    :return: bgr image
+    """
+    font_face = cv.FONT_HERSHEY_SIMPLEX
+    font_scale = 0.5
+    font_color = (0, 0, 0)  # BGR
+    font_thickness = 1
+    output_img = img_bgr
+    height, width, _ = img_bgr.shape
+    text_size, _ = cv.getTextSize(str(time_step_num), font_face, font_scale, font_thickness)
+    line_padding = 2
+    left_padding = 20
+    top_padding = 20
+    output_img = cv.putText(output_img, 'time step: {}'.format(time_step_num), (left_padding, top_padding), font_face,
+                            font_scale, font_color, font_thickness, cv.LINE_AA)
+    output_img = cv.putText(output_img, 'hex_order_avg_norm: {:03.2f}'.format(hex_order_avg_norm),
+                            (left_padding, top_padding + (text_size[1] + line_padding) * 1), font_face, font_scale,
+                            font_color, font_thickness, cv.LINE_AA)
+    output_img = cv.putText(output_img, 'hex_order_norm_avg: {:03.2f}'.format(hex_order_norm_avg),
+                            (left_padding, top_padding + (text_size[1] + line_padding) * 2), font_face, font_scale,
+                            font_color, font_thickness, cv.LINE_AA)
+    output_img = cv.putText(output_img, 'entropy_by_distances: {:03.2f}'.format(entropy_by_distances),
+                            (left_padding, top_padding + (text_size[1] + line_padding) * 3), font_face, font_scale,
+                            font_color, font_thickness, cv.LINE_AA)
+    # output_img = cv.putText(output_img, str('velocity_torque_coupling: {}'.format(velocity_torque_coupling)),
+    #                         (10, 10 + (text_size[1] + line_padding) * 4 ), font_face, font_scale, font_color,
+    #                         font_thickness, cv.LINE_AA)
+    # output_img = cv.putText(output_img, str('magnetic_dipole_force: {}'.format(magnetic_dipole_force)),
+    #                         (10, 10 + (text_size[1] + line_padding) * 5), font_face, font_scale,font_color,
+    #                         font_thickness, cv.LINE_AA)
+    # output_img = cv.putText(output_img, str('capillary_force: {}'.format(capillary_force)),
+    #                         (10, 10 + (text_size[1] + line_padding) * 6), font_face, font_scale,
+    #                         font_color, font_thickness, cv.LINE_AA)
+    # output_img = cv.putText(output_img, str('hydrodynamic_force: {}'.format(hydrodynamic_force)),
+    #                         (10, 10 + (text_size[1] + line_padding) * 7), font_face, font_scale,
+    #                         font_color, font_thickness, cv.LINE_AA)
+    # output_img = cv.putText(output_img, str('B-field_torque: {}'.format(B-field_torque)),
+    #                         (10, 10 + (text_size[1] + line_padding) * 8), font_face, font_scale,
+    #                         font_color, font_thickness, cv.LINE_AA)
+    # output_img = cv.putText(output_img, str('mag_dipole_torque: {}'.format(mag_dipole_torque)),
+    #                         (10, 10 + (text_size[1] + line_padding) * 9), font_face, font_scale,
+    #                         font_color, font_thickness, cv.LINE_AA)
+    # output_img = cv.putText(output_img, str('cap_torque: {}'.format(cap_torque)),
+    #                         (10, 10 + (text_size[1] + line_padding) * 10), font_face, font_scale,
+    #                         font_color, font_thickness, cv.LINE_AA)
 
     return output_img
 
@@ -399,3 +453,37 @@ def adjust_phases(phases_input):
     phases_adjusted = np.cumsum(phases_corrected)
 
     return phases_adjusted
+
+
+def shannon_entropy(c):
+    """calculate the Shannon entropy of 1 d data. The unit is bits """
+
+    c_normalized = c / float(np.sum(c))
+    c_normalized_nonzero = c_normalized[np.nonzero(c_normalized)]  # gives 1D array
+    h = -sum(c_normalized_nonzero * np.log2(c_normalized_nonzero))  # unit in bits
+    return h
+
+
+def square_spiral(num_of_rafts, spacing, origin):
+    """
+    initialize the raft positions using square spirals
+    ref:
+    https://stackoverflow.com/questions/398299/looping-in-a-spiral
+    :param int num_of_rafts: number of rafts
+    :param float spacing: the spacing between lines
+    :param numpy array origin: numpy array of float
+    :return: locations of rafts in square spiral
+    """
+    raft_locations = np.zeros((num_of_rafts, 2))
+#    X =Y = int(np.sqrt(num_of_rafts))
+    x = y = 0
+    dx = 0
+    dy = -1
+    for i in range(num_of_rafts):
+
+        raft_locations[i, :] = np.array([x, y]) * spacing + origin
+        if x == y or (x < 0 and x == -y) or (x > 0 and x == 1-y):
+            dx, dy = -dy, dx
+        x, y = x+dx, y+dy
+    return raft_locations
+
