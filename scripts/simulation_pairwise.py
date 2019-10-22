@@ -282,7 +282,7 @@ lastOmegaOfPreviousSpinSpeeds = np.zeros(numOfRafts)
 firstSpinSpeedFlag = 1
 
 timeStepSize = 1e-3  # unit: s
-numOfTimeSteps = 10000
+numOfTimeSteps = 100
 timeTotal = timeStepSize * numOfTimeSteps
 
 lubEqThreshold = 15  # unit micron, if the eeDistance is below this value, use lubrication equations
@@ -293,7 +293,7 @@ outputImageSeq = 0
 outputVideo = 1
 outputFrameRate = 10.0
 intervalBetweenFrames = int(10)  # unit: steps
-blankFrameBGR = np.ones((canvasSizeInPixel, canvasSizeInPixel, 3), dtype='int') * 255
+blankFrameBGR = np.ones((canvasSizeInPixel, canvasSizeInPixel, 3), dtype='int16') * 255
 
 solverMethod = 'RK45'  # RK45, RK23, Radau, BDF, LSODA
 
@@ -634,20 +634,20 @@ for magneticFieldRotationRPS in np.arange(-20, -22, -1):
         # draw for current frame
         if (outputImageSeq == 1 or outputVideo == 1) and (currentStepNum % intervalBetweenFrames == 0):
             currentFrameBGR = fsr.draw_rafts_rh_coord(blankFrameBGR.copy(),
-                                                      np.int64(raftLocations[:, currentStepNum, :] / scaleBar),
-                                                      np.int64(raftRadii / scaleBar), numOfRafts)
+                                                      np.int16(raftLocations[:, currentStepNum, :] / scaleBar),
+                                                      np.int16(raftRadii / scaleBar), numOfRafts)
             currentFrameBGR = fsr.draw_b_field_in_rh_coord(currentFrameBGR, magneticFieldDirection)
             currentFrameBGR = fsr.draw_cap_peaks_rh_coord(currentFrameBGR,
-                                                          np.int64(raftLocations[:, currentStepNum, :] / scaleBar),
+                                                          np.int16(raftLocations[:, currentStepNum, :] / scaleBar),
                                                           raftOrientations[:, currentStepNum], 6, capillaryPeakOffset,
-                                                          np.int64(raftRadii / scaleBar), numOfRafts)
+                                                          np.int16(raftRadii / scaleBar), numOfRafts)
             currentFrameBGR = fsr.draw_raft_orientations_rh_coord(currentFrameBGR,
-                                                                  np.int64(
+                                                                  np.int16(
                                                                       raftLocations[:, currentStepNum, :] / scaleBar),
                                                                   raftOrientations[:, currentStepNum],
-                                                                  np.int64(raftRadii / scaleBar), numOfRafts)
+                                                                  np.int16(raftRadii / scaleBar), numOfRafts)
             currentFrameBGR = fsr.draw_raft_num_rh_coord(currentFrameBGR,
-                                                         np.int64(raftLocations[:, currentStepNum, :] / scaleBar),
+                                                         np.int16(raftLocations[:, currentStepNum, :] / scaleBar),
                                                          numOfRafts)
 
             vector1To2SingleFrame = raftLocations[1, currentStepNum, :] - raftLocations[0, currentStepNum, :]
@@ -683,3 +683,4 @@ for magneticFieldRotationRPS in np.arange(-20, -22, -1):
 
 #    lastPositionOfPreviousSpinSpeeds[:,:] = raftLocations[:,currentStepNum,:]
 #    lastOmegaOfPreviousSpinSpeeds[:] = raftRotationSpeedsInRad[:, currentStepNum]
+
