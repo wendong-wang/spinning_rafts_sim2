@@ -1,7 +1,6 @@
 """
-This is for the simulation of pairwise interactions.
+This module processes the data of simulated pairwise interactions.
 The maximum characters per line is set to be 120.
-
 """
 
 import glob
@@ -9,16 +8,16 @@ import os
 import shelve
 import platform
 
-import cv2 as cv
+# import cv2 as cv
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import progressbar
+# import progressbar
 # from scipy.integrate import RK45
-from scipy.integrate import solve_ivp
-from scipy.spatial import Voronoi as scipyVoronoi
+# from scipy.integrate import solve_ivp
+# from scipy.spatial import Voronoi as scipyVoronoi
 # import scipy.io
-from scipy.spatial import distance as scipy_distance
+# from scipy.spatial import distance as scipy_distance
 
 
 if platform.node() == 'NOTESIT43' and platform.system() == 'Windows':
@@ -206,12 +205,12 @@ dataID = 0
 variableListFromSimulatedFile = list(mainDataList[dataID].keys())
 
 # # just to avoid Pycharm scolding me for using undefined variables
-# raftLocations = []
-# magneticFieldRotationRPS = []
-# raftOrientations = []
+raftLocations = mainDataList[dataID]['raftLocations']
+magneticFieldRotationRPS = mainDataList[dataID]['magneticFieldRotationRPS']
+raftOrientations = mainDataList[dataID]['raftOrientations']
 
-for key, value in mainDataList[dataID].items():  # loop through key-value pairs of python dictionary
-    globals()[key] = value
+# for key, value in mainDataList[dataID].items():  # loop through key-value pairs of python dictionary
+#     globals()[key] = value
 
 # data treatment
 startOfSamplingStep = 0  # 0, 10000
@@ -281,7 +280,7 @@ fRaft2SpinSpeeds, pRaft2SpinSpeeds = fsr.fft_general(samplingRate, raft2SpinSpee
 # plt.show()
 
 # plotting distances between rafts vs frame# (time)
-fig, ax = plt.subplots(ncols=1, nrows=1)
+_, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(np.arange(len(distances)) * timeStepSize, distances, '-o', label='c')
 ax.set_xlabel('Time (s)', size=20)
 ax.set_ylabel('ccdistances between rafts (micron)', size=20)
@@ -290,7 +289,7 @@ ax.legend()
 plt.show()
 
 # plotting the fft of distances
-fig, ax = plt.subplots(ncols=1, nrows=1)
+_, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(fDistances[1:], pDistances[1:], '-o', label='c')
 ax.set_xlabel('fDistances (Hz)', size=20)
 ax.set_ylabel('Power P1 (a.u.)', size=20)
@@ -299,7 +298,7 @@ ax.legend()
 plt.show()
 
 # plotting orbiting speeds vs time
-fig, ax = plt.subplots(ncols=1, nrows=1)
+_, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(orbitingSpeeds, '-o', label='orbiting speeds calculated from orientation')
 ax.set_xlabel('Frames(Time)', size=20)
 ax.set_ylabel('orbiting speeds in rad/s', size=20)
@@ -308,7 +307,7 @@ ax.legend()
 plt.show()
 
 # plotting the fft of orbiting speed
-fig, ax = plt.subplots(ncols=1, nrows=1)
+_, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(fOrbitingSpeeds[1:], pOrbitingSpeeds[1:], '-o', label='c')
 ax.set_xlabel('fOrbitingSpeeds (Hz)', size=20)
 ax.set_ylabel('Power P1 (a.u.)', size=20)
@@ -363,7 +362,7 @@ plt.show()
 # plt.show()
 
 # plotting raft orientations vs frame# (time)
-fig, ax = plt.subplots(ncols=1, nrows=1)
+_, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(raft1Orientations, '-o', label='raft 1 orientation before adjustment')
 ax.plot(raft2Orientations, '-o', label='raft 2 orientation before adjustment')
 ax.set_xlabel('Steps(Time)', size=20)
@@ -373,7 +372,7 @@ ax.legend()
 plt.show()
 
 # plotting raft orientations adjusted vs frame# (time)
-fig, ax = plt.subplots(ncols=1, nrows=1)
+_, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(raft1OrientationsAdjusted, '-o', label='raft 1 orientation adjusted')
 ax.plot(raft2OrientationsAdjusted, '-o', label='raft 2 orientation adjusted')
 ax.set_xlabel('Steps(Time)', size=20)
@@ -383,7 +382,7 @@ ax.legend()
 plt.show()
 
 # plotting raft spin speeds vs frame# (time)
-fig, ax = plt.subplots(ncols=1, nrows=1)
+_, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(raft1SpinSpeeds, '-', label='raft 1 spin speeds')
 ax.plot(raft2SpinSpeeds, '-', label='raft 2 spin speeds')
 ax.plot(np.deg2rad(fsr.adjust_phases(raftOrientations[0,startOfSamplingStep+1:]) -
@@ -395,7 +394,7 @@ ax.legend()
 plt.show()
 
 # plotting the fft of spin speeds of raft 1
-fig, ax = plt.subplots(ncols=1, nrows=1)
+_, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(fRaft1SpinSpeeds[1:], pRaft1SpinSpeeds[1:], '-o', label='c')
 ax.set_xlabel('fRaft1SpinSpeeds (Hz)', size=20)
 ax.set_ylabel('Power P1 (a.u.)', size=20)
@@ -404,7 +403,7 @@ ax.legend()
 plt.show()
 
 # plotting the fft of spin speeds of raft 2
-fig, ax = plt.subplots(ncols=1, nrows=1)
+_, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(fRaft2SpinSpeeds[1:], pRaft2SpinSpeeds[1:], '-o', label='c')
 ax.set_xlabel('fRaft2SpinSpeeds (Hz)', size=20)
 ax.set_ylabel('Power P1 (a.u.)', size=20)
