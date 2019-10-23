@@ -2,14 +2,14 @@
 This is for the simulation of many rafts
 The maximum characters per line is set to be 120.
 """
-import glob
+# import glob
 import os
 import shelve
 import platform
 import datetime
 
 import cv2 as cv
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import progressbar
@@ -300,7 +300,7 @@ initialPositionMethod = 2  # 1 -random positions, 2 - fixed initial position,
 # 3 - starting positions are the last positions of the previous spin speeds
 ccSeparationStarting = 400  # unit: micron
 initialOrientation = 0  # unit: deg
-lastPositionOfPreviousSpinSpeeds = np.zeros((numOfRafts, 2)) # come back and check if these three can be removed.
+lastPositionOfPreviousSpinSpeeds = np.zeros((numOfRafts, 2))  # come back and check if these three can be removed.
 lastOmegaOfPreviousSpinSpeeds = np.zeros(numOfRafts)
 firstSpinSpeedFlag = 1
 
@@ -320,7 +320,8 @@ blankFrameBGR = np.ones((canvasSizeInPixel, canvasSizeInPixel, 3), dtype='int32'
 
 solverMethod = 'RK45'  # RK45,RK23, Radau, BDF, LSODA
 
-def many_drdt_dalphadt(t, raft_loc_orient):
+
+def funct_drdt_dalphadt(t, raft_loc_orient):
     """
     Two sets of ordinary differential equations that define dr/dt and dalpha/dt above and below the threshold value
     for the application of lubrication equations
@@ -361,8 +362,9 @@ def many_drdt_dalphadt(t, raft_loc_orient):
         ri = raft_loc[raft_id, :]  # unit: micron
 
         # magnetic field torque:
-        magnetic_field_torque = magneticFieldStrength * magneticMomentOfOneRaft * \
-                                np.sin(np.deg2rad(magneticFieldDirection - raft_orient[raft_id]))  # unit: N.m
+        magnetic_field_torque = \
+            magneticFieldStrength * magneticMomentOfOneRaft \
+            * np.sin(np.deg2rad(magneticFieldDirection - raft_orient[raft_id]))  # unit: N.m
         magnetic_field_torque_term[raft_id] = tb * magnetic_field_torque * 1e6 / (8 * piMiuR * R ** 2)  # unit: 1/s
 
         rji_ee_dist_smallest = R  # initialize
@@ -424,9 +426,9 @@ def many_drdt_dalphadt(t, raft_loc_orient):
         # debug use
         #        capillaryTorqueTerm[raftID, currentStepNum] = capillary_torque_term[raftID]
 
-        raft_spin_speeds_in_rads[raft_id] = magnetic_field_torque_term[raft_id] + \
-                                            magnetic_dipole_torque_term[raft_id] + \
-                                            capillary_torque_term[raft_id] + stochastic_torque_term[raft_id]
+        raft_spin_speeds_in_rads[raft_id] = \
+            magnetic_field_torque_term[raft_id] + magnetic_dipole_torque_term[raft_id] \
+            + capillary_torque_term[raft_id] + stochastic_torque_term[raft_id]
 
     # loop for forces
     for raft_id in np.arange(numOfRafts):
@@ -447,13 +449,15 @@ def many_drdt_dalphadt(t, raft_loc_orient):
             d_to_right = arenaSize - ri[0]
             d_to_bottom = ri[1]
             d_to_top = arenaSize - ri[1]
-            boundary_force_term[raft_id, :] = 1e-6 * densityOfWater * omegai ** 2 * R ** 7 / (6 * piMiuR) \
-                                              * ((1 / d_to_left ** 3 - 1 / d_to_right ** 3) * unitVectorX
-                                                 + (1 / d_to_bottom ** 3 - 1 / d_to_top ** 3) * unitVectorY)
+            boundary_force_term[raft_id, :] = \
+                1e-6 * densityOfWater * omegai ** 2 * R ** 7 / (6 * piMiuR) \
+                * ((1 / d_to_left ** 3 - 1 / d_to_right ** 3) * unitVectorX
+                   + (1 / d_to_bottom ** 3 - 1 / d_to_top ** 3) * unitVectorY)
 
         # magnetic field torque:
-        magnetic_field_torque = magneticFieldStrength * magneticMomentOfOneRaft \
-                                * np.sin(np.deg2rad(magneticFieldDirection - raft_orient[raft_id]))  # unit: N.m
+        magnetic_field_torque = \
+            magneticFieldStrength * magneticMomentOfOneRaft \
+            * np.sin(np.deg2rad(magneticFieldDirection - raft_orient[raft_id]))  # unit: N.m
         magnetic_field_torque_term[raft_id] = tb * magnetic_field_torque * 1e6 / (8 * piMiuR * R ** 2)  # unit: 1/s
 
         for neighbor_id in np.arange(numOfRafts):
@@ -466,7 +470,6 @@ def many_drdt_dalphadt(t, raft_loc_orient):
             rji_unitized = rji / rji_norm  # unit: micron
             rji_unitized_cross_z = np.asarray((rji_unitized[1], -rji_unitized[0]))
             phi_ji = (np.arctan2(rji[1], rji[0]) * 180 / np.pi - raft_orient[raft_id]) % 360  # unit: deg;
-
 
             # force terms:
             omegaj = raft_spin_speeds_in_rads[neighbor_id]
@@ -543,13 +546,13 @@ def many_drdt_dalphadt(t, raft_loc_orient):
                                                             / (rji_norm ** 2)  # unit: um/s
             elif lubEqThreshold > rji_ee_dist >= 0:
                 velocity_mag_fd_torque_coupling[raft_id, :] = velocity_mag_fd_torque_coupling[raft_id, :] \
-                                                          + lubC[int(rji_ee_dist * lubCoeffScaleFactor)] \
-                                                          * magnetic_field_torque * 1e6 \
-                                                          * rji_unitized_cross_z / miu  # unit: um/s
+                                                              + lubC[int(rji_ee_dist * lubCoeffScaleFactor)] \
+                                                              * magnetic_field_torque * 1e6 \
+                                                              * rji_unitized_cross_z / miu  # unit: um/s
             elif rji_ee_dist < 0:
                 velocity_mag_fd_torque_coupling[raft_id, :] = velocity_mag_fd_torque_coupling[raft_id, :] \
-                                                          + lubC[0] * magnetic_field_torque * 1e6 \
-                                                          * rji_unitized_cross_z / miu  # unit: um/s
+                                                              + lubC[0] * magnetic_field_torque * 1e6 \
+                                                              * rji_unitized_cross_z / miu  # unit: um/s
             # stochastic force term
             # if rji_ee_dist >= lubEqThreshold and currentStepNum > 1:
             #     prev_drdt = (raftLocations[raftID, currentStepNum, :]
@@ -560,12 +563,12 @@ def many_drdt_dalphadt(t, raft_loc_orient):
             #                                                  * rji_unitized
 
         # update drdr and dalphadt
-        drdt[raft_id, :] = mag_dipole_force_on_axis_term[raft_id, :] \
-                           + capillary_force_term[raft_id, :] + hydrodynamic_force_term[raft_id, :] \
-                           + wall_repulsion_term[raft_id, :] + mag_dipole_force_off_axis_term[raft_id, :] \
-                           + velocity_torque_coupling_term[raft_id, :] + velocity_mag_fd_torque_coupling[raft_id, :] \
-                           + stochastic_force[raft_id, :] + curvature_force_term[raft_id, :] \
-                           + boundary_force_term[raft_id, :]
+        drdt[raft_id, :] = \
+            mag_dipole_force_on_axis_term[raft_id, :] + capillary_force_term[raft_id, :] \
+            + hydrodynamic_force_term[raft_id, :] + wall_repulsion_term[raft_id, :] \
+            + mag_dipole_force_off_axis_term[raft_id, :] + velocity_torque_coupling_term[raft_id, :] \
+            + velocity_mag_fd_torque_coupling[raft_id, :] + stochastic_force[raft_id, :] \
+            + curvature_force_term[raft_id, :] + boundary_force_term[raft_id, :]
 
     dalphadt = raft_spin_speeds_in_rads / np.pi * 180  # in deg
 
@@ -627,43 +630,38 @@ for magneticFieldRotationRPS in np.arange(-25, -35, -5):
     dfNeighborsAllFrames = pd.DataFrame(columns=['frameNum', 'raftID', 'hexaticOrderParameter',
                                                  'neighborDistances', 'neighborDistancesAvg'])
 
-    currentStepNum = 0
+    currStepNum = 0
     # initialize rafts positions: 1 - random positions, 2 - fixed initial position,
     # 3 - starting positions are the last positions of the previous spin speeds
     if initialPositionMethod == 1:
         # initialize the raft positions in the first frame, check pairwise ccdistance all above 2R
         paddingAroundArena = 5  # unit: radius
         ccDistanceMin = 2.5  # unit: radius
-        raftLocations[:, currentStepNum, :] = np.random.uniform(0 + raftRadius * paddingAroundArena,
-                                                                arenaSize - raftRadius * paddingAroundArena,
-                                                                (numOfRafts, 2))
-        pairwiseDistances = scipy_distance.cdist(raftLocations[:, currentStepNum, :],
-                                                 raftLocations[:, currentStepNum, :], 'euclidean')
-        np.fill_diagonal(pairwiseDistances, raftRadius * ccDistanceMin + 1)
-        raftsToRelocate, _ = np.nonzero(pairwiseDistances < raftRadius * ccDistanceMin)
-        raftsToRelocate = np.unique(raftsToRelocate)
-
+        raftLocations[:, currStepNum, :] = np.random.uniform(0 + raftRadius * paddingAroundArena,
+                                                             arenaSize - raftRadius * paddingAroundArena,
+                                                             (numOfRafts, 2))
+        raftsToRelocate = np.arange(numOfRafts)
         while len(raftsToRelocate) > 0:
-            raftLocations[raftsToRelocate, currentStepNum, :] = np.random.uniform(0 + raftRadius * paddingAroundArena,
-                                                                                  arenaSize - raftRadius * paddingAroundArena,
-                                                                                  (len(raftsToRelocate), 2))
-            pairwiseDistances = scipy_distance.cdist(raftLocations[:, currentStepNum, :],
-                                                     raftLocations[:, currentStepNum, :], 'euclidean')
+            raftLocations[raftsToRelocate, currStepNum, :] = np.random.uniform(
+                0 + raftRadius * paddingAroundArena,
+                arenaSize - raftRadius * paddingAroundArena, (len(raftsToRelocate), 2))
+            pairwiseDistances = scipy_distance.cdist(raftLocations[:, currStepNum, :],
+                                                     raftLocations[:, currStepNum, :], 'euclidean')
             np.fill_diagonal(pairwiseDistances, raftRadius * ccDistanceMin + 1)
             raftsToRelocate, _ = np.nonzero(pairwiseDistances < raftRadius * ccDistanceMin)
             raftsToRelocate = np.unique(raftsToRelocate)
     elif initialPositionMethod == 2 or (initialPositionMethod == 3 and firstSpinSpeedFlag == 1):
         if numOfRafts == 2:
-            raftLocations[0, currentStepNum, :] = np.array([arenaSize / 2 + ccSeparationStarting / 2, arenaSize / 2])
-            raftLocations[1, currentStepNum, :] = np.array([arenaSize / 2 - ccSeparationStarting / 2, arenaSize / 2])
-            raftOrientations[:, currentStepNum] = initialOrientation
-            raftRotationSpeedsInRad[:, currentStepNum] = omegaBField
+            raftLocations[0, currStepNum, :] = np.array([arenaSize / 2 + ccSeparationStarting / 2, arenaSize / 2])
+            raftLocations[1, currStepNum, :] = np.array([arenaSize / 2 - ccSeparationStarting / 2, arenaSize / 2])
+            raftOrientations[:, currStepNum] = initialOrientation
+            raftRotationSpeedsInRad[:, currStepNum] = omegaBField
         else:
-            raftLocations[:, currentStepNum, :] = fsr.square_spiral(numOfRafts, raftRadius * 2 + 100, centerOfArena)
+            raftLocations[:, currStepNum, :] = fsr.square_spiral(numOfRafts, raftRadius * 2 + 100, centerOfArena)
         firstSpinSpeedFlag = 0
     elif initialPositionMethod == 3 and firstSpinSpeedFlag == 0:
-        raftLocations[0, currentStepNum, :] = lastPositionOfPreviousSpinSpeeds[0, :]
-        raftLocations[1, currentStepNum, :] = lastPositionOfPreviousSpinSpeeds[1, :]
+        raftLocations[0, currStepNum, :] = lastPositionOfPreviousSpinSpeeds[0, :]
+        raftLocations[1, currStepNum, :] = lastPositionOfPreviousSpinSpeeds[1, :]
 
     # check and draw the initial position of rafts
     # currentFrameBGR = fsr.draw_rafts_rh_coord(blankFrameBGR.copy(),
@@ -694,21 +692,21 @@ for magneticFieldRotationRPS in np.arange(-25, -35, -5):
         frameW, frameH, _ = blankFrameBGR.shape
         videoOut = cv.VideoWriter(outputVideoName, fourcc, outputFrameRate, (frameH, frameW), 1)
 
-    for currentStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
+    for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
         # currentStepNum = 0
-        magneticFieldDirection = (magneticFieldRotationRPS * 360 * currentStepNum * timeStepSize) % 360
+        magneticFieldDirection = (magneticFieldRotationRPS * 360 * currStepNum * timeStepSize) % 360
 
-        raftLocationsOrientations = np.concatenate((raftLocations[:, currentStepNum, :].flatten(),
-                                                    raftOrientations[:, currentStepNum]))
+        raftLocationsOrientations = np.concatenate((raftLocations[:, currStepNum, :].flatten(),
+                                                    raftOrientations[:, currStepNum]))
 
-        sol = solve_ivp(many_drdt_dalphadt, (0, timeStepSize), raftLocationsOrientations, method=solverMethod)
+        sol = solve_ivp(funct_drdt_dalphadt, (0, timeStepSize), raftLocationsOrientations, method=solverMethod)
 
-        raftLocations[:, currentStepNum + 1, :] = sol.y[0:numOfRafts * 2, -1].reshape(numOfRafts, 2)
-        raftOrientations[:, currentStepNum + 1] = sol.y[numOfRafts * 2: numOfRafts * 3, -1]
+        raftLocations[:, currStepNum + 1, :] = sol.y[0:numOfRafts * 2, -1].reshape(numOfRafts, 2)
+        raftOrientations[:, currStepNum + 1] = sol.y[numOfRafts * 2: numOfRafts * 3, -1]
 
         if numOfRafts > 2:
             # Voronoi calculation:
-            vor = scipyVoronoi(raftLocations[:, currentStepNum, :])
+            vor = scipyVoronoi(raftLocations[:, currStepNum, :])
             allVertices = vor.vertices
             neighborPairs = vor.ridge_points  # row# is the index of a ridge,
             # columns are the two point# that correspond to the ridge
@@ -716,13 +714,13 @@ for magneticFieldRotationRPS in np.arange(-25, -35, -5):
             ridgeVertexPairs = np.asarray(vor.ridge_vertices)  # row# is the index of a ridge,
             # columns are two vertex# of the ridge
 
-            pairwiseDistances = scipy_distance.cdist(raftLocations[:, currentStepNum, :],
-                                                     raftLocations[:, currentStepNum, :], 'euclidean')
+            pairwiseDistances = scipy_distance.cdist(raftLocations[:, currStepNum, :],
+                                                     raftLocations[:, currStepNum, :], 'euclidean')
 
             # calculate hexatic order parameter and entropy by neighbor distances
             for raftID in np.arange(numOfRafts):
                 # raftID = 0
-                ri = raftLocations[raftID, currentStepNum, :]  # unit: micron
+                r_i = raftLocations[raftID, currStepNum, :]  # unit: micron
 
                 # neighbors of this particular raft:
                 ridgeIndices0 = np.nonzero(neighborPairs[:, 0] == raftID)
@@ -734,15 +732,15 @@ for magneticFieldRotationRPS in np.arange(-25, -35, -5):
                 neighborDistances = pairwiseDistances[raftID, NNsOfOneRaft]
 
                 # calculate hexatic order parameter of this one raft
-                neighborLocations = raftLocations[NNsOfOneRaft, currentStepNum, :]
-                neighborAnglesInRad = np.arctan2(-(neighborLocations[:, 1] - ri[1]),
-                                                 (neighborLocations[:, 0] - ri[0]))
+                neighborLocations = raftLocations[NNsOfOneRaft, currStepNum, :]
+                neighborAnglesInRad = np.arctan2(-(neighborLocations[:, 1] - r_i[1]),
+                                                 (neighborLocations[:, 0] - r_i[0]))
                 # negative sign to make angle in the right-handed coordinate
 
-                raftHexaticOrderParameter = np.cos(neighborAnglesInRad * 6).mean() \
-                                            + np.sin(neighborAnglesInRad * 6).mean() * 1j
+                raftHexaticOrderParameter = \
+                    np.cos(neighborAnglesInRad * 6).mean() + np.sin(neighborAnglesInRad * 6).mean() * 1j
 
-                dfNeighbors.at[raftID, 'frameNum'] = currentStepNum
+                dfNeighbors.at[raftID, 'frameNum'] = currStepNum
                 dfNeighbors.at[raftID, 'raftID'] = raftID
                 dfNeighbors.at[raftID, 'hexaticOrderParameter'] = raftHexaticOrderParameter
                 dfNeighbors.at[raftID, 'neighborDistances'] = neighborDistances
@@ -753,17 +751,18 @@ for magneticFieldRotationRPS in np.arange(-25, -35, -5):
             neighborDistancesList = np.concatenate(dfNeighbors['neighborDistances'].tolist())
 
             hexaticOrderParameterArray = np.array(hexaticOrderParameterList)
-            hexaticOrderParameterAvgs[currentStepNum] = hexaticOrderParameterArray.mean()
-            hexaticOrderParameterAvgNorms[currentStepNum] = np.sqrt(
-                hexaticOrderParameterAvgs[currentStepNum].real ** 2 + hexaticOrderParameterAvgs[currentStepNum].imag ** 2)
-            hexaticOrderParameterMeanSquaredDeviations[currentStepNum] = (
-                    (hexaticOrderParameterArray - hexaticOrderParameterAvgs[currentStepNum]) ** 2).mean()
+            hexaticOrderParameterAvgs[currStepNum] = hexaticOrderParameterArray.mean()
+            hexaticOrderParameterAvgNorms[currStepNum] = np.sqrt(hexaticOrderParameterAvgs[currStepNum].real ** 2
+                                                                 + hexaticOrderParameterAvgs[currStepNum].imag ** 2)
+            hexaticOrderParameterMeanSquaredDeviations[currStepNum] = ((hexaticOrderParameterArray
+                                                                        - hexaticOrderParameterAvgs[
+                                                                            currStepNum]) ** 2).mean()
             hexaticOrderParameterModulii = np.absolute(hexaticOrderParameterArray)
-            hexaticOrderParameterModuliiAvgs[currentStepNum] = hexaticOrderParameterModulii.mean()
-            hexaticOrderParameterModuliiStds[currentStepNum] = hexaticOrderParameterModulii.std()
+            hexaticOrderParameterModuliiAvgs[currStepNum] = hexaticOrderParameterModulii.mean()
+            hexaticOrderParameterModuliiStds[currStepNum] = hexaticOrderParameterModulii.std()
 
             count, _ = np.histogram(np.asarray(neighborDistancesList) / raftRadius, binEdgesNeighborDistances)
-            entropyByNeighborDistances[currentStepNum] = fsr.shannon_entropy(count)
+            entropyByNeighborDistances[currStepNum] = fsr.shannon_entropy(count)
 
             # g(r) and g6(r) for this frame
             for radialIndex, radialIntervalStart in enumerate(radialRangeArray):
@@ -773,57 +772,56 @@ for magneticFieldRotationRPS in np.arange(-25, -35, -5):
                                         pairwiseDistances < radialIntervalEnd).nonzero()
                 count = len(js)
                 density = numOfRafts / arenaSize ** 2
-                radialDistributionFunction[currentStepNum, radialIndex] = count / (2 * np.pi * radialIntervalStart
-                                                                                   * deltaR * density * (numOfRafts - 1))
+                radialDistributionFunction[currStepNum, radialIndex] = count / (2 * np.pi * radialIntervalStart
+                                                                                * deltaR * density * (
+                                                                                        numOfRafts - 1))
                 # g6(r)
-                sumOfProductsOfPsi6 = (hexaticOrderParameterArray[js]
-                                       * np.conjugate(hexaticOrderParameterArray[ks])).sum().real
-                spatialCorrHexaOrderPara[currentStepNum, radialIndex] = sumOfProductsOfPsi6 \
-                                                                        / (2 * np.pi * radialIntervalStart * deltaR
-                                                                           * density * (numOfRafts - 1))
+                sumOfProductsOfPsi6 = \
+                    (hexaticOrderParameterArray[js] * np.conjugate(hexaticOrderParameterArray[ks])).sum().real
+                spatialCorrHexaOrderPara[currStepNum, radialIndex] = \
+                    sumOfProductsOfPsi6 / (2 * np.pi * radialIntervalStart * deltaR * density * (numOfRafts - 1))
                 # g6(r)/g(r)
-                if radialDistributionFunction[currentStepNum, radialIndex] != 0:
-                    spatialCorrHexaBondOrientationOrder[currentStepNum, radialIndex] = spatialCorrHexaOrderPara[
-                                                                                           currentStepNum, radialIndex] \
-                                                                                       / radialDistributionFunction[
-                                                                                           currentStepNum, radialIndex]
+                if radialDistributionFunction[currStepNum, radialIndex] != 0:
+                    spatialCorrHexaBondOrientationOrder[currStepNum, radialIndex] = \
+                        spatialCorrHexaOrderPara[currStepNum, radialIndex] / radialDistributionFunction[
+                            currStepNum, radialIndex]
 
             # dfNeighborsAllFrames = dfNeighborsAllFrames.append(dfNeighbors,ignore_index=True)
 
         # draw current frame
-        if (outputImageSeq == 1 or outputVideo == 1) and (currentStepNum % intervalBetweenFrames == 0):
+        if (outputImageSeq == 1 or outputVideo == 1) and (currStepNum % intervalBetweenFrames == 0):
             currentFrameBGR = fsr.draw_rafts_rh_coord(blankFrameBGR.copy(),
-                                                      np.int32(raftLocations[:, currentStepNum, :] / scaleBar),
+                                                      np.int32(raftLocations[:, currStepNum, :] / scaleBar),
                                                       np.int64(raftRadii / scaleBar), numOfRafts)
             if numOfRafts == 2:
                 currentFrameBGR = fsr.draw_b_field_in_rh_coord(currentFrameBGR, magneticFieldDirection)
             currentFrameBGR = fsr.draw_cap_peaks_rh_coord(currentFrameBGR,
-                                                          np.int64(raftLocations[:, currentStepNum, :] / scaleBar),
-                                                          raftOrientations[:, currentStepNum], 6, capillaryPeakOffset,
+                                                          np.int64(raftLocations[:, currStepNum, :] / scaleBar),
+                                                          raftOrientations[:, currStepNum], 6, capillaryPeakOffset,
                                                           np.int64(raftRadii / scaleBar), numOfRafts)
             currentFrameBGR = fsr.draw_raft_orientations_rh_coord(currentFrameBGR,
                                                                   np.int64(
-                                                                      raftLocations[:, currentStepNum, :] / scaleBar),
-                                                                  raftOrientations[:, currentStepNum],
+                                                                      raftLocations[:, currStepNum, :] / scaleBar),
+                                                                  raftOrientations[:, currStepNum],
                                                                   np.int64(raftRadii / scaleBar), numOfRafts)
             currentFrameBGR = fsr.draw_raft_num_rh_coord(currentFrameBGR,
-                                                         np.int64(raftLocations[:, currentStepNum, :] / scaleBar),
+                                                         np.int64(raftLocations[:, currStepNum, :] / scaleBar),
                                                          numOfRafts)
             if numOfRafts == 2:
-                vector1To2SingleFrame = raftLocations[1, currentStepNum, :] - raftLocations[0, currentStepNum, :]
+                vector1To2SingleFrame = raftLocations[1, currStepNum, :] - raftLocations[0, currStepNum, :]
                 distanceSingleFrame = np.sqrt(vector1To2SingleFrame[0] ** 2 + vector1To2SingleFrame[1] ** 2)
                 phase1To2SingleFrame = np.arctan2(vector1To2SingleFrame[1], vector1To2SingleFrame[0]) * 180 / np.pi
-                currentFrameBGR = fsr.draw_frame_info(currentFrameBGR, currentStepNum, distanceSingleFrame,
-                                                      raftOrientations[0, currentStepNum], magneticFieldDirection,
-                                                      raftRelativeOrientationInDeg[0, 1, currentStepNum])
+                currentFrameBGR = fsr.draw_frame_info(currentFrameBGR, currStepNum, distanceSingleFrame,
+                                                      raftOrientations[0, currStepNum], magneticFieldDirection,
+                                                      raftRelativeOrientationInDeg[0, 1, currStepNum])
             elif numOfRafts > 2:
-                currentFrameBGR = fsr.draw_frame_info_many(currentFrameBGR, currentStepNum,
-                                                           hexaticOrderParameterAvgNorms[currentStepNum],
-                                                           hexaticOrderParameterModuliiAvgs[currentStepNum],
-                                                           entropyByNeighborDistances[currentStepNum])
+                currentFrameBGR = fsr.draw_frame_info_many(currentFrameBGR, currStepNum,
+                                                           hexaticOrderParameterAvgNorms[currStepNum],
+                                                           hexaticOrderParameterModuliiAvgs[currStepNum],
+                                                           entropyByNeighborDistances[currStepNum])
 
             if outputImageSeq == 1:
-                outputImageName = outputFileName + str(currentStepNum).zfill(7) + '.jpg'
+                outputImageName = outputFileName + str(currStepNum).zfill(7) + '.jpg'
                 cv.imwrite(outputImageName, currentFrameBGR)
             if outputVideo == 1:
                 videoOut.write(np.uint8(currentFrameBGR))
