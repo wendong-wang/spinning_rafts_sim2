@@ -168,6 +168,7 @@ def draw_cap_peaks_rh_coord(img_bgr, rafts_loc, rafts_ori, raft_sym, cap_offset,
             output_img = cv.line(output_img, line_start, line_end, line_color2, line_thickness)
     return output_img
 
+
 def draw_cap_peaks_lh_coord(img_bgr, rafts_loc, rafts_ori, raft_sym, cap_offset, rafts_radii, num_of_rafts):
     """
     draw lines to indicate the capillary peak positions
@@ -486,4 +487,3 @@ def square_spiral(num_of_rafts, spacing, origin):
             dx, dy = -dy, dx
         x, y = x+dx, y+dy
     return raft_locations
-
