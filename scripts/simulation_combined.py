@@ -252,7 +252,7 @@ else:
     spinSpeedStep = -5
 
 timeStepSize = 1e-3  # unit: s
-numOfTimeSteps = 10
+numOfTimeSteps = 1000
 timeTotal = timeStepSize * numOfTimeSteps
 
 os.chdir(dataDir)
@@ -711,7 +711,7 @@ for magneticFieldRotationRPS in np.arange(spinSpeedStart, spinSpeedEnd, spinSpee
 
     if outputVideo == 1:
         outputVideoName = outputFileName + '.mp4'
-        fourcc = cv.VideoWriter_fourcc(*'DIVX')  # *'mp4v' worked for linux, *'DIVX'
+        fourcc = cv.VideoWriter_fourcc(*'MJPG')  # *'mp4v' worked for linux, *'DIVX', MJPG
         frameW, frameH, _ = blankFrameBGR.shape
         videoOut = cv.VideoWriter(outputVideoName, fourcc, outputFrameRate, (frameH, frameW), 1)
 

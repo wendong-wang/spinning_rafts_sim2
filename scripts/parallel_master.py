@@ -27,7 +27,7 @@ def process_files():
     script_dir = os.path.join(project_dir, "scripts")
     filename = 'simulation_combined.py'
     num_of_rafts = [5]  # num of rafts
-    spin_speeds = np.arange(-15, -20, -1)  # spin speeds, negative means clockwise in the rh coordinate
+    spin_speeds = np.arange(-10, -20, -1)  # spin speeds, negative means clockwise in the rh coordinate
 
     for arg1 in num_of_rafts:
         for arg2 in spin_speeds:
