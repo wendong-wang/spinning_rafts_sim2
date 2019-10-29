@@ -40,7 +40,7 @@ os.chdir(dataDir)
 rootFolderTreeGen = os.walk(dataDir)
 _, mainFolders, _ = next(rootFolderTreeGen)
 
-mainFolderID = 0
+mainFolderID = 1
 os.chdir(mainFolders[mainFolderID])
 
 dataFileList = glob.glob('*.dat')
@@ -129,11 +129,12 @@ if numOfRafts == 2:
         # store in dataframes
         dfMainData.loc[dataID, 'mainFolderName'] = mainFolders[mainFolderID]
         # if mainDataList[dataID]['isVideo'] == 0:
-        #     dfMainData.loc[dataID,'experimentName'] = mainDataList[dataID]['subfolders'][mainDataList[dataID]['expID']]
+        #     dfMainData.loc[dataID,'experimentName'] = \
+        #         mainDataList[dataID]['subfolders'][mainDataList[dataID]['expID']]
         # elif mainDataList[dataID]['isVideo'] == 1:
         #     dfMainData.loc[dataID,'experimentName'] = \
         #         mainDataList[dataID]['videoFileList'][mainDataList[dataID]['expID']]
-        dfMainData.loc[dataID,'batchNum'] = mainDataList[dataID]['batchNum']
+        # dfMainData.loc[dataID,'batchNum'] = mainDataList[dataID]['batchNum']
         dfMainData.loc[dataID, 'magneticFieldRotationRPS'] = - mainDataList[dataID]['magneticFieldRotationRPS']
         dfMainData.loc[dataID, 'distancesMean'] = distancesMean - diameterOfRaftInMicron
         dfMainData.loc[dataID, 'distancesSTD'] = distancesSTD
@@ -242,6 +243,7 @@ if numOfRafts == 2:
     raftLocations = mainDataList[dataID]['raftLocations']
     magneticFieldRotationRPS = mainDataList[dataID]['magneticFieldRotationRPS']
     raftOrientations = mainDataList[dataID]['raftOrientations']
+    timeStepSize = mainDataList[dataID]['timeStepSize']
 
     # for key, value in mainDataList[dataID].items():  # loop through key-value pairs of python dictionary
     #     globals()[key] = value
@@ -419,8 +421,8 @@ if numOfRafts == 2:
     _, ax = plt.subplots(ncols=1, nrows=1)
     ax.plot(raft1SpinSpeeds, '-', label='raft 1 spin speeds')
     ax.plot(raft2SpinSpeeds, '-', label='raft 2 spin speeds')
-    ax.plot(np.deg2rad(fsr.adjust_phases(raftOrientations[0,startOfSamplingStep+1:]) -
-                       fsr.adjust_phases(raftOrientations[0,startOfSamplingStep:-1]))/timeStepSize/(2*np.pi), '-')
+    ax.plot(np.deg2rad(fsr.adjust_phases(raftOrientations[0, startOfSamplingStep+1:]) -
+                       fsr.adjust_phases(raftOrientations[0, startOfSamplingStep:-1]))/timeStepSize/(2*np.pi), '-')
     ax.set_xlabel('Steps(Time)', size=20)
     ax.set_ylabel('spin speeds (rps)', size=20)
     ax.set_title('Simulation at {}rps'.format(magneticFieldRotationRPS))
@@ -493,4 +495,3 @@ elif numOfRafts > 2:
     ax.set_title('Simulation at {}rps'.format(magneticFieldRotationRPS))
     ax.legend()
     plt.show()
-

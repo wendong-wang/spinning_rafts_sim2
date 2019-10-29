@@ -4,6 +4,7 @@ The maximum characters per line is set to be 120.
 """
 # import glob
 import os
+import sys
 import shelve
 import platform
 import datetime
@@ -19,6 +20,8 @@ from scipy.spatial import Voronoi as scipyVoronoi
 # import scipy.io
 from scipy.spatial import distance as scipy_distance
 
+parallel_mode = 1
+
 if platform.node() == 'NOTESIT43' and platform.system() == 'Windows':
     projectDir = "D:\\simulationFolder\\spinning_rafts_sim2"
 elif platform.node() == 'NOTESIT71' and platform.system() == 'Linux':
@@ -29,7 +32,10 @@ else:
 if projectDir != os.getcwd():
     os.chdir(projectDir)
 
-import scripts.functions_spinning_rafts as fsr
+if parallel_mode == 1:
+    import functions_spinning_rafts as fsr
+else:
+    import scripts.functions_spinning_rafts as fsr
 
 scriptDir = os.path.join(projectDir, "scripts")
 capSym6Dir = os.path.join(projectDir, '2019-05-13_capillaryForceCalculations-sym6')
@@ -37,6 +43,7 @@ capSym4Dir = os.path.join(projectDir, '2019-03-29_capillaryForceCalculations')
 dataDir = os.path.join(projectDir, 'data')
 if not os.path.isdir(dataDir):
     os.mkdir('data')
+
 
 # %% load capillary force and torque
 
@@ -233,15 +240,31 @@ lubC = - RforCoeff * lubG
 
 
 # %% simulation of many rafts
-numOfRafts = 2
+if parallel_mode == 1:
+    numOfRafts = int(sys.argv[1])
+    spinSpeedStart = int(sys.argv[2])
+    spinSpeedStep = -1
+    spinSpeedEnd = spinSpeedStart + spinSpeedStep
+else:
+    numOfRafts = 2
+    spinSpeedStart = -20  # negative value is clockwise rotation
+    spinSpeedEnd = -30
+    spinSpeedStep = -5
+
 timeStepSize = 1e-3  # unit: s
-numOfTimeSteps = 1000
+numOfTimeSteps = 10
 timeTotal = timeStepSize * numOfTimeSteps
 
 os.chdir(dataDir)
 now = datetime.datetime.now()
-outputFolderName = now.strftime("%Y-%m-%d_%H-%M-%S") + '_' + str(numOfRafts) + 'Rafts_' + \
+
+if parallel_mode == 1:
+    outputFolderName = now.strftime("%Y-%m-%d") + '_' + str(numOfRafts) + 'Rafts_' + \
                    'timeStep' + str(timeStepSize) + '_total' + str(timeTotal) + 's'
+else:
+    outputFolderName = now.strftime("%Y-%m-%d_%H-%M-%S") + '_' + str(numOfRafts) + 'Rafts_' + \
+                       'timeStep' + str(timeStepSize) + '_total' + str(timeTotal) + 's'
+
 if not os.path.isdir(outputFolderName):
     os.mkdir(outputFolderName)
 os.chdir(outputFolderName)
@@ -263,7 +286,7 @@ listOfVariablesToSave = ['arenaSize', 'numOfRafts', 'magneticFieldStrength', 'ma
                          # 'wall_repulsion_term', 'stochastic_force_term', 'force_curvature_term',
                          # 'magnetic_field_torque_term', 'magnetic_dipole_torque_term',
                          # 'capillary_torque_term', 'stochastic_torque_term',
-                         'currentStepNum', 'currentFrameBGR', 'dfNeighbors', 'dfNeighborsAllFrames']
+                         'currStepNum', 'currentFrameBGR', 'dfNeighbors', 'dfNeighborsAllFrames']
 
 # constants of proportionality
 cm = 1  # coefficient for the magnetic force term
@@ -578,7 +601,7 @@ def funct_drdt_dalphadt(t, raft_loc_orient):
 
 
 # for forceDueToCurvature in np.array([0]):
-for magneticFieldRotationRPS in np.arange(-25, -35, -5):
+for magneticFieldRotationRPS in np.arange(spinSpeedStart, spinSpeedEnd, spinSpeedStep):
     # negative magneticFieldRotationRPS means clockwise in rh coordinate,
     # positive magneticFieldRotationRPS means counter-clockwise
     # magneticFieldRotationRPS = -10 # unit: rps (rounds per seconds)
@@ -688,7 +711,7 @@ for magneticFieldRotationRPS in np.arange(-25, -35, -5):
 
     if outputVideo == 1:
         outputVideoName = outputFileName + '.mp4'
-        fourcc = cv.VideoWriter_fourcc(*'mp4v')
+        fourcc = cv.VideoWriter_fourcc(*'DIVX')  # *'mp4v' worked for linux, *'DIVX'
         frameW, frameH, _ = blankFrameBGR.shape
         videoOut = cv.VideoWriter(outputVideoName, fourcc, outputFrameRate, (frameH, frameW), 1)
 
@@ -772,9 +795,8 @@ for magneticFieldRotationRPS in np.arange(-25, -35, -5):
                                         pairwiseDistances < radialIntervalEnd).nonzero()
                 count = len(js)
                 density = numOfRafts / arenaSize ** 2
-                radialDistributionFunction[currStepNum, radialIndex] = count / (2 * np.pi * radialIntervalStart
-                                                                                * deltaR * density * (
-                                                                                        numOfRafts - 1))
+                radialDistributionFunction[currStepNum, radialIndex] = \
+                    count / (2 * np.pi * radialIntervalStart * deltaR * density * ( numOfRafts - 1))
                 # g6(r)
                 sumOfProductsOfPsi6 = \
                     (hexaticOrderParameterArray[js] * np.conjugate(hexaticOrderParameterArray[ks])).sum().real
