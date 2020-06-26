@@ -13,11 +13,11 @@ import scipy.io
 import os, glob
 import shelve
 
-rootFolderNameFromWindows = r'D:\\simulationFolder\spinningRaftsSimulationCode' #
+rootFolderNameFromWindows = r'D:\\simulationFolder\spinning_rafts_sim2' #
 
 os.chdir(rootFolderNameFromWindows)
 
-sym = 4
+sym = 6
 if sym == 4:
     os.chdir('2019-03-29_capillaryForceCalculations')
 elif sym == 6: 
@@ -29,7 +29,7 @@ if sym == 4:
     resultTheory = scipy.io.loadmat('Results_ccDistance341to1300step1um_angleCount91_errorPower-10_treated.mat')
 elif sym == 6:
     resultSurfaceEvolver = scipy.io.loadmat('ResultsCombined_L4_amp2_arcAngle30_ccDist301-350um-count50_rotAngle61_bathRad500.mat')
-    resultTheory = scipy.io.loadmat('Results_sym6_arcAngle30_ccDistance341to1300step1um_angleCount361_errorPower-10_treated.mat')
+    resultTheory = scipy.io.loadmat('Results_sym6_arcAngle30_ccDistance341to1600step1um_angleCount361_errorPower-10_treated.mat')
 
 # load data of surface evolver
 raftAmpSE = resultSurfaceEvolver['raftAmp'][0][0] # unit: um

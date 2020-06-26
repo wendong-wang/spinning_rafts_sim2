@@ -20,7 +20,7 @@ from scipy.spatial import Voronoi as scipyVoronoi
 # import scipy.io
 from scipy.spatial import distance as scipy_distance
 
-parallel_mode = 1
+parallel_mode = 0
 
 if platform.node() == 'NOTESIT43' and platform.system() == 'Windows':
     projectDir = "D:\\simulationFolder\\spinning_rafts_sim2"
@@ -56,12 +56,14 @@ listOfVariablesToLoad = ['eeDistanceCombined', 'forceCombinedDistancesAsRowsAll3
 
 if not os.path.isfile(shelveDataFileName):
     print('the capillary data file is missing')
+    
 
 tempShelf = shelve.open(shelveName)
 capillaryEEDistances = tempShelf['eeDistanceCombined']  # unit: m
 capillaryForcesDistancesAsRowsLoaded = tempShelf['forceCombinedDistancesAsRowsAll360']  # unit: N
 capillaryTorquesDistancesAsRowsLoaded = tempShelf['torqueCombinedDistancesAsRowsAll360']  # unit: N.m
 
+tempShelf.close()
 # further data treatment on capillary force profile
 # insert the force and torque at eeDistance = 1um as the value for eedistance = 0um.
 capillaryEEDistances = np.insert(capillaryEEDistances, 0, 0)
@@ -72,9 +74,9 @@ capillaryTorquesDistancesAsRows = np.concatenate(
 
 # add angle=360, the same as angle = 0
 capillaryForcesDistancesAsRows = np.concatenate(
-    (capillaryForcesDistancesAsRows, capillaryForcesDistancesAsRows[:, 0].reshape(1001, 1)), axis=1)
+    (capillaryForcesDistancesAsRows, capillaryForcesDistancesAsRows[:, 0].reshape(1301, 1)), axis=1)
 capillaryTorquesDistancesAsRows = np.concatenate(
-    (capillaryTorquesDistancesAsRows, capillaryTorquesDistancesAsRows[:, 0].reshape(1001, 1)), axis=1)
+    (capillaryTorquesDistancesAsRows, capillaryTorquesDistancesAsRows[:, 0].reshape(1301, 1)), axis=1)
 
 # correct for the negative sign of the torque
 capillaryTorquesDistancesAsRows = - capillaryTorquesDistancesAsRows
