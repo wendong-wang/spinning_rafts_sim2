@@ -307,7 +307,7 @@ if numOfRafts > 2:
     arenaSize = 1.5e4
 else:
     arenaSize = 2e3  # unit: micron
-R = raftRadius = 1.5e2  # unit: micron (will come back and revise this duplication)
+R = raftRadius = 1.5e2  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 # cutoffDistance = 100000  # unit: micron. Above which assume that the rafts do not interact.
 # radiusOfCurvatureFreeCenter = 10 * raftRadius # unit: micron

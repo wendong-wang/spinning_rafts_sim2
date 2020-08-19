@@ -190,8 +190,8 @@ def optimiseLBetaEntropy(magneticFieldRotationRPS, Hist_exp, E_total, Hydrodynam
 
 
 #%% changing of directory related to simulations
-simulationFolderName = '/home/gardi/spinning_rafts_sim2' 
-os.chdir(simulationFolderName)
+# simulationFolderName = '/home/gardi/spinning_rafts_sim2'
+# os.chdir(simulationFolderName)
 
 if platform.node() == 'NOTESIT43' and platform.system() == 'Windows':
     projectDir = "D:\\simulationFolder\\spinning_rafts_sim2"
@@ -205,18 +205,22 @@ if projectDir != os.getcwd():
 
 import scripts.functions_spinning_rafts as fsr
 
+scriptDir = os.path.join(projectDir, "scripts")
 dataDir = os.path.join(projectDir, 'data')
-
 capSym6Dir = os.path.join(projectDir, '2019-05-13_capillaryForceCalculations-sym6')
+
 #%%  change to directory contatining experiments data
 
 #rootFolderNameFromWindows = '/media/gardi/DataMPI_10/Data_PhantomMiroLab140'
 #rootFolderNameFromWindows = '/media/gardi/VideoFiles_Raw_PP/Data_Camera_Basler-acA2500-60uc/'
-rootFolderNameFromWindows = '/home/gardi/Rafts/Experiments Data/Data_Camera_Basler-acA2500-60uc/'
-os.chdir(rootFolderNameFromWindows)
-rootFolderTreeGen = os.walk(rootFolderNameFromWindows)
-_, mainFolders_experiments, _ = next(rootFolderTreeGen) 
+# rootFolderNameFromWindows = '/home/gardi/Rafts/Experiments Data/Data_Camera_Basler-acA2500-60uc/'
+# os.chdir(rootFolderNameFromWindows)
+# rootFolderTreeGen = os.walk(rootFolderNameFromWindows)
+# _, mainFolders_experiments, _ = next(rootFolderTreeGen)
 
+os.chdir(dataDir)
+rootFolderTreeGen = os.walk(dataDir)
+_, mainFolders_experiments, _ = next(rootFolderTreeGen)
 
 #%% loading all the data in a specific main folder into mainDataList
 # at the moment, it handles one main folder at a time. 
@@ -224,7 +228,7 @@ _, mainFolders_experiments, _ = next(rootFolderTreeGen)
 #for mainFolderID in np.arange(0,1):
 #    os.chdir(mainFolders[mainFolderID])
 
-mainFolderID_experiments = 2
+mainFolderID_experiments = 0
 os.chdir(mainFolders_experiments[mainFolderID_experiments])
 expDataDir = os.getcwd()
 dataFileList_experiments = glob.glob('*.dat')

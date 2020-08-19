@@ -5,6 +5,7 @@ The function definition files.
 import cv2 as cv
 import numpy as np
 from scipy.spatial import Voronoi as scipyVoronoi
+from scipy.spatial import distance as scipy_distance
 
 
 def draw_rafts_rh_coord(img_bgr, rafts_loc, rafts_radii, num_of_rafts):
@@ -478,12 +479,103 @@ def square_spiral(num_of_rafts, spacing, origin):
     raft_locations = np.zeros((num_of_rafts, 2))
 #    X =Y = int(np.sqrt(num_of_rafts))
     x = y = 0
-    dx = 0
-    dy = -1
-    for i in range(num_of_rafts):
+    # dx = 0
+    # dy = -1
+    # for i in range(num_of_rafts):
+    #
+    #     raft_locations[i, :] = np.array([x, y]) * spacing + origin
+    #     if x == y or (x < 0 and x == -y) or (x > 0 and x == 1-y):
+    #         dx, dy = -dy, dx
+    #     x, y = x+dx, y+dy
 
+    # or more explicitly
+    dx, dy = 1, 0
+    for i in range(num_of_rafts):
         raft_locations[i, :] = np.array([x, y]) * spacing + origin
-        if x == y or (x < 0 and x == -y) or (x > 0 and x == 1-y):
-            dx, dy = -dy, dx
+        if x > 0 and x == 1 - y:
+            dx, dy = 0, 1
+        elif x > 0 and x == y:
+            dx, dy = -1, 0
+        elif x < 0 and x == -y:
+            dx, dy = 0, -1
+        elif x < 0 and x == y:
+            dx, dy = 1, 0
         x, y = x+dx, y+dy
     return raft_locations
+
+
+def hexagonal_spiral(num_of_rafts, spacing, origin):
+    """
+    initialize the raft positions using square spirals
+    ref:
+    https://stackoverflow.com/questions/398299/looping-in-a-spiral
+    :param int num_of_rafts: number of rafts
+    :param float spacing: the spacing between lines
+    :param numpy array origin: numpy array of float
+    :return: locations of rafts in square spiral
+    """
+    raft_locations = np.zeros((num_of_rafts, 2))
+    a = b = 0
+    da, db = 1, 0
+    for i in range(num_of_rafts):
+        raft_locations[i, :] = np.array([a + b*np.cos(np.pi/3), b*np.sin(np.pi/3)]) * spacing + origin
+        if a > 0 and b == 0:
+            da, db = -1, +1
+        elif a == 0 and b > 0:
+            da, db = -1, 0
+        elif a < 0 and b == -a:
+            da, db = 0, -1
+        elif a < 0 and b == 0:
+            da, db = 1, -1
+        elif a == 0 and b < 0:
+            da, db = 1, 0
+        elif a > 0 and b == 1 - a:
+            da, db = 0, 1
+        a, b = a+da, b+db
+    return raft_locations
+
+
+def neighbor_dist_list(raft_locations):
+    """
+    :param raft_locations: shape: (num of rafts, 2)
+    """
+    num_of_rafts, _ = raft_locations.shape
+    pairwise_distances = scipy_distance.cdist(raft_locations, raft_locations, 'euclidean')
+    # Voronoi calculation
+    vor = scipyVoronoi(raft_locations)
+    all_vertices = vor.vertices
+    neighbor_pairs = vor.ridge_points  # row# is the index of a ridge,
+    # columns are the two point# that correspond to the ridge
+
+    ridge_vertex_pairs = np.asarray(vor.ridge_vertices)  # row# is the index of a ridge,
+    # columns are two vertex# of the ridge
+
+    neighbor_distances = []
+    # calculate hexatic order parameter and entropy by neighbor distances
+    for raftID in np.arange(num_of_rafts):
+        # raftID = 0
+        r_i = raft_locations[raftID, :]  # unit: micron
+
+        # neighbors of this particular raft:
+        ridge_indices0 = np.nonzero(neighbor_pairs[:, 0] == raftID)
+        ridge_indices1 = np.nonzero(neighbor_pairs[:, 1] == raftID)
+        ridge_indices = np.concatenate((ridge_indices0, ridge_indices1), axis=None)
+        neighbor_pairs_of_one_raft = neighbor_pairs[ridge_indices, :]
+        nns_of_one_raft = np.concatenate((neighbor_pairs_of_one_raft[neighbor_pairs_of_one_raft[:, 0] == raftID, 1],
+                                          neighbor_pairs_of_one_raft[neighbor_pairs_of_one_raft[:, 1] == raftID, 0]))
+        neighbor_distances.append(pairwise_distances[raftID, nns_of_one_raft])
+
+    return np.concatenate(neighbor_distances)
+
+
+def kl_divergence(p, q):
+    """
+    calculate the KL divergence of two distributions
+    """
+    if p.sum() != 1:
+        p = p/p.sum()
+    if q.sum() != 1:
+        q = q/q.sum()
+    q += 1e-7
+    return np.sum(np.where(p != 0, p*np.log(p/q), 0))
+
