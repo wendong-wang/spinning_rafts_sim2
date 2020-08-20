@@ -69,7 +69,7 @@ if not os.path.isdir(dataDir):
 
 # %% Monte Carlo simulation
 # key parameters
-numOfRafts = 100
+numOfRafts = 50
 numOfTimeSteps = 600
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
@@ -128,6 +128,7 @@ entropy_NDist = np.zeros(numOfTimeSteps)
 entropy_ODist = np.zeros(numOfTimeSteps)
 entropy_X = np.zeros(numOfTimeSteps)
 entropy_Y = np.zeros(numOfTimeSteps)
+rejectionRates = np.zeros(numOfTimeSteps)
 
 # initialize rafts positions: 1 - random positions, 2 - fixed initial position,
 # 3 - hexagonal fixed position
@@ -169,19 +170,18 @@ outputImageName = outputFileName + str(currStepNum).zfill(7) + '.jpg'
 cv.imwrite(outputImageName, currentFrameBGR)
 
 for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
-    dict_counts = fsr.count_distribution(raftLocations[:, currStepNum, :], raftRadius, binEdgesNeighborDistances,
-                                         binEdgesX, binEdgesY)
-    dict_klDiv = fsr.divergences_curr_target(dict_counts, target)
-    # dict_entropies = fsr.entropies_of_counts(dict_counts)
+    dict_NDist = fsr.count_kldiv_entropy_ndist(raftLocations[:, currStepNum, :], raftRadius,
+                                               binEdgesNeighborDistances, target)
+    dict_X = fsr.count_kldiv_entropy_x(raftLocations[:, currStepNum, :], raftRadius, binEdgesX, target)
+    dict_Y = fsr.count_kldiv_entropy_y(raftLocations[:, currStepNum, :], raftRadius, binEdgesY, target)
 
-    # assignments:
-    count_NDist[:, currStepNum], count_X[:, currStepNum], count_Y[:, currStepNum] = \
-        dict_counts["count_NDist"], dict_counts["count_X"], dict_counts["count_X"]
-    klDiv_NDist[currStepNum], klDiv_X[currStepNum], klDiv_Y[currStepNum] = \
-        dict_klDiv["klDiv_NDist"], dict_klDiv["klDiv_X"], dict_klDiv["klDiv_Y"]
-    # entropy_NDist[currStepNum], entropy_ODist[currStepNum], entropy_X[currStepNum], entropy_Y[currStepNum] = \
-    #     dict_entropies["entropy_NDist"], dict_entropies["entropy_ODist"], \
-    #     dict_entropies["entropy_X"], dict_entropies["entropy_Y"]
+    # assignments
+    count_NDist[:, currStepNum], klDiv_NDist[currStepNum], entropy_NDist[currStepNum] = \
+        dict_NDist['count_NDist'], dict_NDist['klDiv_NDist'], dict_NDist['entropy_NDist']
+    count_X[:, currStepNum], klDiv_X[currStepNum], entropy_X[currStepNum] = \
+        dict_X['count_X'], dict_X['klDiv_X'], dict_X['entropy_X']
+    count_Y[:, currStepNum], klDiv_Y[currStepNum], entropy_Y[currStepNum] = \
+        dict_Y['count_Y'], dict_Y['klDiv_Y'], dict_Y['entropy_Y']
 
     newLocations = raftLocations[:, currStepNum, :].copy()
     for raftID in np.arange(numOfRafts):
@@ -206,6 +206,7 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
             continue
         else:
             newLocations[raftID, :] = newLocations[raftID, :] - moveInXY
+            rejectionRates[currStepNum] += 1
 
     raftLocations[:, currStepNum + 1, :] = newLocations
 

@@ -641,3 +641,79 @@ def entropies_of_counts(dict_with_counts):
 
     return entropies
 
+
+def count_kldiv_entropy_ndist(raft_locations, raft_radius, edges_ndist, target_dict):
+    """
+    calculate the count/distribution, KL divergence and entropy of neighbor distances
+    :param raft_locations:
+    :param raft_radius:
+    :param edges_ndist:
+    :param target_dict: dictionary containing target count_NDist, count_X, count_Y
+    """
+    neighbor_distances = neighbor_distances_array(raft_locations)
+    count_ndist, _ = np.histogram(neighbor_distances / raft_radius, edges_ndist)
+    kldiv_ndist = kl_divergence(count_ndist, target_dict['count_NDist'])
+    entropy_ndist = shannon_entropy(count_ndist)
+
+    dict_ndist = {"count_NDist": count_ndist,
+                  "klDiv_NDist": kldiv_ndist,
+                  "entropy_NDist": entropy_ndist}
+    return dict_ndist
+
+
+def count_kldiv_entropy_odist(raft_locations, raft_radius, edges_odist, target_dict):
+    """
+    calculate the count/distribution, KL divergence and entropy of neighbor distances
+    :param raft_locations:
+    :param raft_radius:
+    :param edges_odist:
+    :param target_dict: dictionary containing target count_NDist, count_X, count_Y
+    """
+    center_of_mass = raft_locations.mean(axis=0, keepdims=True)
+    orbiting_distances = scipy_distance.cdist(raft_locations, center_of_mass, 'euclidean')
+    count_odist, _ = np.histogram(orbiting_distances / raft_radius, edges_odist)
+    kldiv_odist = kl_divergence(count_odist, target_dict['count_ODist'])
+    entropy_odist = shannon_entropy(count_odist)
+
+    dict_odist = {"count_ODist": count_odist,
+                  "klDiv_ODist": kldiv_odist,
+                  "entropy_ODist": entropy_odist}
+    return dict_odist
+
+
+def count_kldiv_entropy_x(raft_locations, raft_radius, edges_x, target_dict):
+    """
+    calculate the count/distribution, KL divergence and entropy of neighbor distances
+    :param raft_locations:
+    :param raft_radius:
+    :param edges_x:
+    :param target_dict: dictionary containing target count_NDist, count_X, count_Y
+    """
+    count_x, _ = np.histogram(raft_locations[:, 0] / raft_radius, edges_x)
+    kldiv_x = kl_divergence(count_x, target_dict['count_X'])
+    entropy_x = shannon_entropy(count_x)
+
+    dict_x = {"count_X": count_x,
+              "klDiv_X": kldiv_x,
+              "entropy_X": entropy_x}
+    return dict_x
+
+
+def count_kldiv_entropy_y(raft_locations, raft_radius, edges_y, target_dict):
+    """
+    calculate the count/distribution, KL divergence and entropy of neighbor distances
+    :param raft_locations:
+    :param raft_radius:
+    :param edges_y:
+    :param target_dict: dictionary containing target count_NDist, count_X, count_Y
+    """
+    count_y, _ = np.histogram(raft_locations[:, 0] / raft_radius, edges_y)
+    kldiv_y = kl_divergence(count_y, target_dict['count_X'])
+    entropy_y = shannon_entropy(count_y)
+
+    dict_y = {"count_Y": count_y,
+              "klDiv_Y": kldiv_y,
+              "entropy_Y": entropy_y}
+    return dict_y
+
+
