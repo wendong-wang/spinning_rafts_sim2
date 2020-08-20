@@ -3,12 +3,25 @@ This is for the Monte Carlo simulation of the configuration of many rafts
 The maximum characters per line is set to be 120.
 
 The algorithm is as follows:
-1) randomly put ~200 rafts in a square
-2) calculate the orders and distribution of neighbor distances and distribution of rafts from the center of mass
-3) calculate the KL divergence between the simulated distributions and experimental ones
-4) randomly move one raft and repeat step 2) and 3)
-5) compare the KL divergences before and after the move, if they decrease, accept the move.
-6) repeat step 4) and 5)
+randomly put ~200 rafts in a square
+for each step do
+    calculate the distribution of neighbor distances (count_NDist) and marginal distribution of x (count_X)
+    calculate the KL divergence between the simulated distributions and perfect hexagonal one (klDiv_NDist and klDiv_X)
+    for each raft do
+        generate a random movement vector moveInXY, uniformly sampled from [-R, R]^2
+        move the raft
+        if the new position is outside the arena or the new position is within 2R of other rafts
+            move back the raft
+            continue the for loop of next raft
+        calculate count_NDist and count_X of the new configuration
+        calculate klDiv_NDist and klDiv_X
+        if klDiv_NDist OR klDiv_X decreases (this is the key conditional statement)
+            continue the for loop for the next raft
+        else
+            move back the raft
+    end for
+end for
+
 
 """
 # import glob
@@ -57,7 +70,7 @@ if not os.path.isdir(dataDir):
 # %% Monte Carlo simulation
 # key parameters
 numOfRafts = 200
-numOfTimeSteps = 50
+numOfTimeSteps = 1000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -175,6 +188,12 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
         # raftID = 0
         moveInXY = np.random.uniform(low=-1, high=1, size=2) * R
         newLocations[raftID, :] = newLocations[raftID, :] + moveInXY
+        # take care of the cases where moving the rafts outside the arena or overlapping with another raft.
+        if newLocations[raftID, :].max() > arenaSize or newLocations[raftID, :].min() < 0 or \
+            scipy_distance.cdist(newLocations[np.arange(numOfRafts) != raftID, :],
+                                 newLocations[raftID, :].reshape(1, 2)).min() < 2 * R:
+            newLocations[raftID, :] = newLocations[raftID, :] - moveInXY
+            continue
 
         dict_counts = fsr.count_distribution(newLocations, raftRadius, binEdgesNeighborDistances,
                                              binEdgesX, binEdgesY)
@@ -210,6 +229,26 @@ tempShelf.close()
 
 
 # %% plotting
+fig, ax = plt.subplots(ncols=1, nrows=1)
+ax.plot(np.arange(numOfTimeSteps - 1), klDiv_NDist[:-1], label='kldiv_NDist vs steps')
+ax.set_xlabel('time steps', size=20)
+ax.set_ylabel('KL divergence of NDist', size=20)
+ax.set_title('KL divergence of NDist')
+ax.legend()
+plt.show()
+figName = 'KL divergence of NDist'
+fig.savefig(figName)
+
+fig, ax = plt.subplots(ncols=1, nrows=1)
+ax.plot(np.arange(numOfTimeSteps - 1), klDiv_X[:-1], label='kldiv_X vs steps')
+ax.set_xlabel('time steps', size=20)
+ax.set_ylabel('KL divergence of X', size=20)
+ax.set_title('KL divergence of X')
+ax.legend()
+plt.show()
+figName = 'KL divergence of X'
+fig.savefig(figName)
+
 fig, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(np.arange(binStart, binEnd_NDist, binSize), count_NDist / count_NDist.sum(), label='NDist distribution')
 ax.set_xlabel('edge-edge distance', size=20)
