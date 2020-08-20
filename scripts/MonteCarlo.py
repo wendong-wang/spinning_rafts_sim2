@@ -157,15 +157,15 @@ cv.imwrite(outputImageName, currentFrameBGR)
 
 for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
     dict_counts = fsr.count_distribution(raftLocations[:, currStepNum, :], raftRadius, binEdgesNeighborDistances,
-                                         binEdgesOrbitingDistances, binEdgesX, binEdgesY)
+                                         binEdgesX, binEdgesY)
     dict_klDiv = fsr.divergences_curr_target(dict_counts, target)
     # dict_entropies = fsr.entropies_of_counts(dict_counts)
 
     # assignments:
-    count_NDist[:, currStepNum], count_ODist[:, currStepNum], count_X[:, currStepNum], count_Y[:, currStepNum] = \
-        dict_counts["count_NDist"], dict_counts["count_ODist"], dict_counts["count_X"], dict_counts["count_X"]
-    klDiv_NDist[currStepNum], klDiv_ODist[currStepNum], klDiv_X[currStepNum], klDiv_Y[currStepNum] = \
-        dict_klDiv["klDiv_NDist"], dict_klDiv["klDiv_ODist"], dict_klDiv["klDiv_X"], dict_klDiv["klDiv_Y"]
+    count_NDist[:, currStepNum], count_X[:, currStepNum], count_Y[:, currStepNum] = \
+        dict_counts["count_NDist"], dict_counts["count_X"], dict_counts["count_X"]
+    klDiv_NDist[currStepNum], klDiv_X[currStepNum], klDiv_Y[currStepNum] = \
+        dict_klDiv["klDiv_NDist"], dict_klDiv["klDiv_X"], dict_klDiv["klDiv_Y"]
     # entropy_NDist[currStepNum], entropy_ODist[currStepNum], entropy_X[currStepNum], entropy_Y[currStepNum] = \
     #     dict_entropies["entropy_NDist"], dict_entropies["entropy_ODist"], \
     #     dict_entropies["entropy_X"], dict_entropies["entropy_Y"]
@@ -177,7 +177,7 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
         newLocations[raftID, :] = newLocations[raftID, :] + moveInXY
 
         dict_counts = fsr.count_distribution(newLocations, raftRadius, binEdgesNeighborDistances,
-                                             binEdgesOrbitingDistances, binEdgesX, binEdgesY)
+                                             binEdgesX, binEdgesY)
         dict_klDiv = fsr.divergences_curr_target(dict_counts, target)
 
         # if the selected divergences decreases, then accept the move, otherwise reject the move
