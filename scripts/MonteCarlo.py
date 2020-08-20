@@ -70,22 +70,25 @@ if not os.path.isdir(dataDir):
 # %% Monte Carlo simulation
 # key parameters
 numOfRafts = 50
-numOfTimeSteps = 600
+numOfTimeSteps = 200
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
-binSize = 0.5  # unit: radius
-binStart = 2  # unit: radius
+binSize_NDist = 0.5  # unit: radius
+binStart_NDist = 2  # unit: radius
 binEnd_NDist = 50  # unit: radius
-binEnd_ODist = 80  # unit: radius
-binEdgesNeighborDistances = list(np.arange(binStart, binEnd_NDist, binSize)) + [100]
-binEdgesOrbitingDistances = list(np.arange(binStart, binEnd_ODist, binSize)) + [100]
-binEdgesX = list(np.arange(0, arenaSize/R, binSize))
-binEdgesY = list(np.arange(0, arenaSize/R, binSize))
+binEdgesNeighborDistances = list(np.arange(binStart_NDist, binEnd_NDist, binSize_NDist)) + [100]
+binSize_ODist = 0.5  # unit: radius
+binStart_ODist = 2  # unit: radius
+binEnd_ODist = 50  # unit: radius
+binEdgesOrbitingDistances = list(np.arange(binStart_ODist, binEnd_ODist, binSize_ODist)) + [100]
+binSize_XY = 2  # unit: radius
+binEdgesX = list(np.arange(0, arenaSize/R, binSize_XY))
+binEdgesY = list(np.arange(0, arenaSize/R, binSize_XY))
 
 # load target distributions
 os.chdir(dataDir)
-tempShelf = shelve.open('targetDistributions')
+tempShelf = shelve.open('target_' + str(numOfRafts) + "Rafts")
 variableListOfTargetDistributions = list(tempShelf.keys())
 target = {}
 for key in tempShelf:
@@ -170,14 +173,14 @@ outputImageName = outputFileName + str(currStepNum).zfill(7) + '.jpg'
 cv.imwrite(outputImageName, currentFrameBGR)
 
 for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
-    dict_NDist = fsr.count_kldiv_entropy_ndist(raftLocations[:, currStepNum, :], raftRadius,
-                                               binEdgesNeighborDistances, target)
+    # dict_NDist = fsr.count_kldiv_entropy_ndist(raftLocations[:, currStepNum, :], raftRadius,
+    #                                            binEdgesNeighborDistances, target)
     dict_X = fsr.count_kldiv_entropy_x(raftLocations[:, currStepNum, :], raftRadius, binEdgesX, target)
     dict_Y = fsr.count_kldiv_entropy_y(raftLocations[:, currStepNum, :], raftRadius, binEdgesY, target)
 
     # assignments
-    count_NDist[:, currStepNum], klDiv_NDist[currStepNum], entropy_NDist[currStepNum] = \
-        dict_NDist['count_NDist'], dict_NDist['klDiv_NDist'], dict_NDist['entropy_NDist']
+    # count_NDist[:, currStepNum], klDiv_NDist[currStepNum], entropy_NDist[currStepNum] = \
+    #     dict_NDist['count_NDist'], dict_NDist['klDiv_NDist'], dict_NDist['entropy_NDist']
     count_X[:, currStepNum], klDiv_X[currStepNum], entropy_X[currStepNum] = \
         dict_X['count_X'], dict_X['klDiv_X'], dict_X['entropy_X']
     count_Y[:, currStepNum], klDiv_Y[currStepNum], entropy_Y[currStepNum] = \
@@ -186,39 +189,85 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
     newLocations = raftLocations[:, currStepNum, :].copy()
     for raftID in np.arange(numOfRafts):
         # raftID = 0
-        moveInXY = np.random.uniform(low=-1, high=1, size=2) * R
+        incrementInXY = np.random.uniform(low=-1, high=1, size=2) * R
         # take care of the cases where moving the rafts outside the arena or overlapping with another raft.
-        newXY = newLocations[raftID, :] + moveInXY
+        newXY = newLocations[raftID, :] + incrementInXY
         while newXY.max() > arenaSize or newXY.min() < 0 or \
               scipy_distance.cdist(newLocations[np.arange(numOfRafts) != raftID, :],
                                    newXY.reshape(1, 2)).min() < 2 * R:
-            moveInXY = np.random.uniform(low=-1, high=1, size=2) * R
-            newXY = newLocations[raftID, :] + moveInXY
+            incrementInXY = np.random.uniform(low=-1, high=1, size=2) * R
+            newXY = newLocations[raftID, :] + incrementInXY
         newLocations[raftID, :] = newXY
 
-        dict_counts = fsr.count_distribution(newLocations, raftRadius, binEdgesNeighborDistances,
-                                             binEdgesX, binEdgesY)
-        dict_klDiv = fsr.divergences_curr_target(dict_counts, target)
+        # dict_NDist = fsr.count_kldiv_entropy_ndist(newLocations, raftRadius, binEdgesNeighborDistances, target)
+        dict_X = fsr.count_kldiv_entropy_x(newLocations, raftRadius, binEdgesX, target)
+        dict_Y = fsr.count_kldiv_entropy_y(newLocations, raftRadius, binEdgesY, target)
 
         # if the selected divergences decreases, then accept the move, otherwise reject the move
-        if (dict_klDiv["klDiv_NDist"] <= klDiv_NDist[currStepNum]) and \
-                (dict_klDiv["klDiv_X"] <= klDiv_X[currStepNum]):
+        if (dict_Y["klDiv_Y"] <= klDiv_Y[currStepNum]) and \
+                (dict_X["klDiv_X"] <= klDiv_X[currStepNum]):
             continue
         else:
-            newLocations[raftID, :] = newLocations[raftID, :] - moveInXY
+            newLocations[raftID, :] = newLocations[raftID, :] - incrementInXY
             rejectionRates[currStepNum] += 1
 
     raftLocations[:, currStepNum + 1, :] = newLocations
 
+# %% plotting simulation results
+# KL divergence of neighbor distances vs time steps
+fig, ax = plt.subplots(ncols=1, nrows=1)
+ax.plot(np.arange(numOfTimeSteps - 1), klDiv_NDist[:-1], label='kldiv_NDist vs steps')
+ax.set_xlabel('time steps', size=20)
+ax.set_ylabel('KL divergence of NDist', size=20)
+ax.set_title('KL divergence of NDist')
+ax.legend()
+plt.show()
+figName = 'KL divergence of NDist'
+fig.savefig(figName)
 
-# %% saving dataset
-listOfVariablesToSave = ['numOfRafts', 'numOfTimeSteps', 'arenaSize', 'binSize',
-                         'raftLocations', 'neighborDistancesList', 'orbitingDistances',
-                         'entropyByNeighborDistances', 'count_NDist',
-                         'entropyByOrbitingDistances', 'count_ODist',
-                         'entropyByX', 'count_X',
-                         'entropyByY', 'count_Y']
-tempShelf = shelve.open('variables')
+# KL divergence of x vs time steps
+fig, ax = plt.subplots(ncols=1, nrows=1)
+ax.plot(np.arange(numOfTimeSteps - 1), klDiv_X[:-1], label='kldiv_X vs steps')
+ax.set_xlabel('time steps', size=20)
+ax.set_ylabel('KL divergence of X', size=20)
+ax.set_title('KL divergence of X')
+ax.legend()
+plt.show()
+figName = 'KL divergence of X'
+fig.savefig(figName)
+
+
+# %% generating target dataset
+# first run the previous section till the desired target pattern is generated
+currStepNum = 0
+# distribution by neighbor distances
+neighborDistances = fsr.neighbor_distances_array(raftLocations[:, currStepNum, :])
+count_NDist, _ = np.histogram(np.asarray(neighborDistances) / raftRadius, binEdgesNeighborDistances)
+entropy_NDist = fsr.shannon_entropy(count_NDist)
+
+# distribution by orbiting distances
+centerOfMass = raftLocations[:, currStepNum, :].mean(axis=0, keepdims=True)
+orbitingDistances = scipy_distance.cdist(raftLocations[:, currStepNum, :], centerOfMass, 'euclidean')
+count_ODist, _ = np.histogram(np.asarray(orbitingDistances) / raftRadius, binEdgesOrbitingDistances)
+entropy_ODist = fsr.shannon_entropy(count_ODist)
+
+# distribution by X
+count_X, _ = np.histogram(raftLocations[:, currStepNum, 0] / raftRadius, binEdgesX)
+entropy_X = fsr.shannon_entropy(count_X)
+
+# distribution by y
+count_Y, _ = np.histogram(raftLocations[:, currStepNum, 1] / raftRadius, binEdgesY)
+entropy_Y = fsr.shannon_entropy(count_Y)
+
+listOfVariablesToSave = ['numOfRafts', 'numOfTimeSteps', 'arenaSize',
+                         'raftLocations', 'neighborDistances', 'orbitingDistances',
+                         'binEdgesNeighborDistances', 'binEdgesOrbitingDistances',
+                         'binEdgesX', 'binEdgesX',
+                         'entropy_NDist', 'count_NDist',
+                         'entropy_ODist', 'count_ODist',
+                         'entropy_X', 'count_X',
+                         'entropy_Y', 'count_Y']
+tempShelf = shelve.open('target_' + str(numOfRafts) + "Rafts")
 for key in listOfVariablesToSave:
     try:
         tempShelf[key] = globals()[key]
@@ -231,29 +280,12 @@ for key in listOfVariablesToSave:
 tempShelf.close()
 
 
-# %% plotting
-fig, ax = plt.subplots(ncols=1, nrows=1)
-ax.plot(np.arange(numOfTimeSteps - 1), klDiv_NDist[:-1], label='kldiv_NDist vs steps')
-ax.set_xlabel('time steps', size=20)
-ax.set_ylabel('KL divergence of NDist', size=20)
-ax.set_title('KL divergence of NDist')
-ax.legend()
-plt.show()
-figName = 'KL divergence of NDist'
-fig.savefig(figName)
 
+# %% plottting for target distributions
+# Histogram of target neighbor distances
 fig, ax = plt.subplots(ncols=1, nrows=1)
-ax.plot(np.arange(numOfTimeSteps - 1), klDiv_X[:-1], label='kldiv_X vs steps')
-ax.set_xlabel('time steps', size=20)
-ax.set_ylabel('KL divergence of X', size=20)
-ax.set_title('KL divergence of X')
-ax.legend()
-plt.show()
-figName = 'KL divergence of X'
-fig.savefig(figName)
-
-fig, ax = plt.subplots(ncols=1, nrows=1)
-ax.plot(np.arange(binStart, binEnd_NDist, binSize), count_NDist / count_NDist.sum(), label='NDist distribution')
+ax.plot(np.arange(binStart_NDist, binEnd_NDist, binSize_NDist), count_NDist / count_NDist.sum(),
+        label='NDist distribution')
 ax.set_xlabel('edge-edge distance', size=20)
 ax.set_ylabel('probability', size=20)
 ax.set_title('histogram of neighbor distances')
@@ -262,8 +294,10 @@ plt.show()
 figName = 'Histogram of neighbor distances'
 fig.savefig(figName)
 
+# Histogram of target orbiting distances
 fig, ax = plt.subplots(ncols=1, nrows=1)
-ax.plot(np.arange(binStart, binEnd_ODist, binSize), count_ODist / count_ODist.sum(), label='ODist distribution')
+ax.plot(np.arange(binStart_ODist, binEnd_ODist, binSize_ODist), count_ODist / count_ODist.sum(),
+        label='ODist distribution')
 # ax.plot(np.arange(binStart, binEnd_ODist, binSize), count_ODist / count_ODist.sum() /
 #         (0.5*binEdgesOrbitingDistances[0:-1] + 0.5*binEdgesOrbitingDistances[1:]), label='normal ODist distribution')
 ax.set_xlabel('radial distance r', size=20)
