@@ -69,8 +69,8 @@ if not os.path.isdir(dataDir):
 
 # %% Monte Carlo simulation
 # key parameters
-numOfRafts = 200
-numOfTimeSteps = 1000
+numOfRafts = 100
+numOfTimeSteps = 600
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -187,20 +187,22 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
     for raftID in np.arange(numOfRafts):
         # raftID = 0
         moveInXY = np.random.uniform(low=-1, high=1, size=2) * R
-        newLocations[raftID, :] = newLocations[raftID, :] + moveInXY
         # take care of the cases where moving the rafts outside the arena or overlapping with another raft.
-        if newLocations[raftID, :].max() > arenaSize or newLocations[raftID, :].min() < 0 or \
-            scipy_distance.cdist(newLocations[np.arange(numOfRafts) != raftID, :],
-                                 newLocations[raftID, :].reshape(1, 2)).min() < 2 * R:
-            newLocations[raftID, :] = newLocations[raftID, :] - moveInXY
-            continue
+        newXY = newLocations[raftID, :] + moveInXY
+        while newXY.max() > arenaSize or newXY.min() < 0 or \
+              scipy_distance.cdist(newLocations[np.arange(numOfRafts) != raftID, :],
+                                   newXY.reshape(1, 2)).min() < 2 * R:
+            moveInXY = np.random.uniform(low=-1, high=1, size=2) * R
+            newXY = newLocations[raftID, :] + moveInXY
+        newLocations[raftID, :] = newXY
 
         dict_counts = fsr.count_distribution(newLocations, raftRadius, binEdgesNeighborDistances,
                                              binEdgesX, binEdgesY)
         dict_klDiv = fsr.divergences_curr_target(dict_counts, target)
 
         # if the selected divergences decreases, then accept the move, otherwise reject the move
-        if (dict_klDiv["klDiv_NDist"] < klDiv_NDist[currStepNum]) and (dict_klDiv["klDiv_X"] < klDiv_X[currStepNum]):
+        if (dict_klDiv["klDiv_NDist"] <= klDiv_NDist[currStepNum]) and \
+                (dict_klDiv["klDiv_X"] <= klDiv_X[currStepNum]):
             continue
         else:
             newLocations[raftID, :] = newLocations[raftID, :] - moveInXY

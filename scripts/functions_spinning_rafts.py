@@ -597,6 +597,8 @@ def count_distribution(raft_locations, raft_radius, edges_ndist, edges_x, edges_
     neighbor_distances = neighbor_distances_array(raft_locations)
     count_ndist, _ = np.histogram(neighbor_distances / raft_radius, edges_ndist)
 
+    count_ndist = np.zeros(len(edges_ndist) -1)
+
     count_x, _ = np.histogram(raft_locations[:, 0] / raft_radius, edges_x)
     count_y, _ = np.histogram(raft_locations[:, 1] / raft_radius, edges_y)
 
