@@ -70,7 +70,7 @@ if not os.path.isdir(dataDir):
 # %% Monte Carlo simulation
 # key parameters
 numOfRafts = 50
-numOfTimeSteps = 200
+numOfTimeSteps = 5000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -156,7 +156,7 @@ if initialPositionMethod == 1:
 elif initialPositionMethod == 2:
     raftLocations[:, currStepNum, :] = fsr.square_spiral(numOfRafts, raftRadius * 2 + 100, centerOfArena)
 elif initialPositionMethod == 3:
-    raftLocations[:, currStepNum, :] = fsr.hexagonal_spiral(numOfRafts, raftRadius * 2 + 400, centerOfArena)
+    raftLocations[:, currStepNum, :] = fsr.hexagonal_spiral(numOfRafts, raftRadius * 2 + 200, centerOfArena)
 
 # drawing rafts
 currentFrameBGR = fsr.draw_rafts_rh_coord(blankFrameBGR.copy(),
@@ -176,15 +176,15 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
     # dict_NDist = fsr.count_kldiv_entropy_ndist(raftLocations[:, currStepNum, :], raftRadius,
     #                                            binEdgesNeighborDistances, target)
     dict_X = fsr.count_kldiv_entropy_x(raftLocations[:, currStepNum, :], raftRadius, binEdgesX, target)
-    dict_Y = fsr.count_kldiv_entropy_y(raftLocations[:, currStepNum, :], raftRadius, binEdgesY, target)
+    # dict_Y = fsr.count_kldiv_entropy_y(raftLocations[:, currStepNum, :], raftRadius, binEdgesY, target)
 
     # assignments
     # count_NDist[:, currStepNum], klDiv_NDist[currStepNum], entropy_NDist[currStepNum] = \
     #     dict_NDist['count_NDist'], dict_NDist['klDiv_NDist'], dict_NDist['entropy_NDist']
     count_X[:, currStepNum], klDiv_X[currStepNum], entropy_X[currStepNum] = \
         dict_X['count_X'], dict_X['klDiv_X'], dict_X['entropy_X']
-    count_Y[:, currStepNum], klDiv_Y[currStepNum], entropy_Y[currStepNum] = \
-        dict_Y['count_Y'], dict_Y['klDiv_Y'], dict_Y['entropy_Y']
+    # count_Y[:, currStepNum], klDiv_Y[currStepNum], entropy_Y[currStepNum] = \
+    #     dict_Y['count_Y'], dict_Y['klDiv_Y'], dict_Y['entropy_Y']
 
     newLocations = raftLocations[:, currStepNum, :].copy()
     for raftID in np.arange(numOfRafts):
@@ -201,11 +201,10 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
 
         # dict_NDist = fsr.count_kldiv_entropy_ndist(newLocations, raftRadius, binEdgesNeighborDistances, target)
         dict_X = fsr.count_kldiv_entropy_x(newLocations, raftRadius, binEdgesX, target)
-        dict_Y = fsr.count_kldiv_entropy_y(newLocations, raftRadius, binEdgesY, target)
+        # dict_Y = fsr.count_kldiv_entropy_y(newLocations, raftRadius, binEdgesY, target)
 
         # if the selected divergences decreases, then accept the move, otherwise reject the move
-        if (dict_Y["klDiv_Y"] <= klDiv_Y[currStepNum]) and \
-                (dict_X["klDiv_X"] <= klDiv_X[currStepNum]):
+        if (dict_X["klDiv_X"] <= klDiv_X[currStepNum]):
             continue
         else:
             newLocations[raftID, :] = newLocations[raftID, :] - incrementInXY
@@ -236,6 +235,27 @@ plt.show()
 figName = 'KL divergence of X'
 fig.savefig(figName)
 
+# KL divergence of y vs time steps
+fig, ax = plt.subplots(ncols=1, nrows=1)
+ax.plot(np.arange(numOfTimeSteps - 1), klDiv_Y[:-1], label='kldiv_Y vs steps')
+ax.set_xlabel('time steps', size=20)
+ax.set_ylabel('KL divergence of Y', size=20)
+ax.set_title('KL divergence of Y')
+ax.legend()
+plt.show()
+figName = 'KL divergence of Y'
+fig.savefig(figName)
+
+# rejection rate vs time steps
+fig, ax = plt.subplots(ncols=1, nrows=1)
+ax.plot(np.arange(numOfTimeSteps - 1), rejectionRates[:-1], label='total number of rafts {}'.format(numOfRafts))
+ax.set_xlabel('time steps', size=20)
+ax.set_ylabel('rejection rate', size=20)
+ax.set_title('rejection rate')
+ax.legend()
+plt.show()
+figName = 'rejection rate'
+fig.savefig(figName)
 
 # %% generating target dataset
 # first run the previous section till the desired target pattern is generated

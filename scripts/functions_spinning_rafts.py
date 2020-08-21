@@ -574,72 +574,72 @@ def kl_divergence(p, q):
     :param p: test distribution
     :param q: target distribution
     """
-    if p.sum() != 1:
-        p = p/p.sum()
-    if q.sum() != 1:
-        q = q/q.sum()
-    q = q + 1e-7  # 1e-7 is added to avoid division by zero problem
+    p_norm = p/p.sum()
+    q_norm = q/q.sum()
+    q_norm = q_norm + 1e-9  # 1e-7 is added to avoid division by zero problem
     # 1e-7 also penalize any nonzero probability showing up where it should be zero
-    kl_d = np.sum(np.where(p != 0, p*np.log(p/q), 0))
+    c = p_norm/q_norm
+    ind = np.nonzero(p_norm)
+    kl_d = np.sum(p_norm[ind] * np.log2(c[ind]))
     return kl_d
 
 
-def count_distribution(raft_locations, raft_radius, edges_ndist, edges_x, edges_y):
-    """
-    extracting various counts or distributions from raft locations
-    :param raft_locations: shape: (num of rafts, 2)
-    :param raft_radius:
-    :param edges_ndist:
-    :param edges_x:
-    :param edges_y:
-    :return: counts: dictionary containing count_NDist, count_ODist, count_X, count_Y
-    """
-    neighbor_distances = neighbor_distances_array(raft_locations)
-    count_ndist, _ = np.histogram(neighbor_distances / raft_radius, edges_ndist)
-
-    count_ndist = np.zeros(len(edges_ndist) -1)
-
-    count_x, _ = np.histogram(raft_locations[:, 0] / raft_radius, edges_x)
-    count_y, _ = np.histogram(raft_locations[:, 1] / raft_radius, edges_y)
-
-    counts = {"count_NDist": count_ndist,
-              "count_X": count_x,
-              "count_Y": count_y}
-
-    return counts
-
-
-def divergences_curr_target(curr_dict, target_dict):
-    """
-    Give various KL divergence between the two sets of counts
-    :param: curr_dict: dictionary containing current count_NDist, count_X, count_Y
-    :param: target_dict: dictionary containing target count_NDist, count_X, count_Y
-    """
-    kldiv_ndist = kl_divergence(curr_dict['count_NDist'], target_dict['count_NDist'])
-    kldiv_x = kl_divergence(curr_dict['count_X'], target_dict['count_X'])
-    kldiv_y = kl_divergence(curr_dict['count_Y'], target_dict['count_Y'])
-
-    divergences = {"klDiv_NDist": kldiv_ndist,
-                   "klDiv_X": kldiv_x,
-                   "klDiv_Y": kldiv_y}
-    return divergences
-
-
-def entropies_of_counts(dict_with_counts):
-    """
-    Get the entropies of distributions in the count
-    :param dict_with_counts: dictionary containing count_NDist, count_X, count_Y
-    :return: entropies: dictionary containing entropy_NDist, entropy_X, entropy_Y
-    """
-    entropy_ndist = shannon_entropy(dict_with_counts['count_NDist'])
-    entropy_x = shannon_entropy(dict_with_counts['count_X'])
-    entropy_y = shannon_entropy(dict_with_counts['count_Y'])
-
-    entropies = {"entropy_NDist": entropy_ndist,
-                 "entropy_X": entropy_x,
-                 "entropy_Y": entropy_y}
-
-    return entropies
+# def count_distribution(raft_locations, raft_radius, edges_ndist, edges_x, edges_y):
+#     """
+#     extracting various counts or distributions from raft locations
+#     :param raft_locations: shape: (num of rafts, 2)
+#     :param raft_radius:
+#     :param edges_ndist:
+#     :param edges_x:
+#     :param edges_y:
+#     :return: counts: dictionary containing count_NDist, count_ODist, count_X, count_Y
+#     """
+#     neighbor_distances = neighbor_distances_array(raft_locations)
+#     count_ndist, _ = np.histogram(neighbor_distances / raft_radius, edges_ndist)
+#
+#     count_ndist = np.zeros(len(edges_ndist) -1)
+#
+#     count_x, _ = np.histogram(raft_locations[:, 0] / raft_radius, edges_x)
+#     count_y, _ = np.histogram(raft_locations[:, 1] / raft_radius, edges_y)
+#
+#     counts = {"count_NDist": count_ndist,
+#               "count_X": count_x,
+#               "count_Y": count_y}
+#
+#     return counts
+#
+#
+# def divergences_curr_target(curr_dict, target_dict):
+#     """
+#     Give various KL divergence between the two sets of counts
+#     :param: curr_dict: dictionary containing current count_NDist, count_X, count_Y
+#     :param: target_dict: dictionary containing target count_NDist, count_X, count_Y
+#     """
+#     kldiv_ndist = kl_divergence(curr_dict['count_NDist'], target_dict['count_NDist'])
+#     kldiv_x = kl_divergence(curr_dict['count_X'], target_dict['count_X'])
+#     kldiv_y = kl_divergence(curr_dict['count_Y'], target_dict['count_Y'])
+#
+#     divergences = {"klDiv_NDist": kldiv_ndist,
+#                    "klDiv_X": kldiv_x,
+#                    "klDiv_Y": kldiv_y}
+#     return divergences
+#
+#
+# def entropies_of_counts(dict_with_counts):
+#     """
+#     Get the entropies of distributions in the count
+#     :param dict_with_counts: dictionary containing count_NDist, count_X, count_Y
+#     :return: entropies: dictionary containing entropy_NDist, entropy_X, entropy_Y
+#     """
+#     entropy_ndist = shannon_entropy(dict_with_counts['count_NDist'])
+#     entropy_x = shannon_entropy(dict_with_counts['count_X'])
+#     entropy_y = shannon_entropy(dict_with_counts['count_Y'])
+#
+#     entropies = {"entropy_NDist": entropy_ndist,
+#                  "entropy_X": entropy_x,
+#                  "entropy_Y": entropy_y}
+#
+#     return entropies
 
 
 def count_kldiv_entropy_ndist(raft_locations, raft_radius, edges_ndist, target_dict):
@@ -708,7 +708,7 @@ def count_kldiv_entropy_y(raft_locations, raft_radius, edges_y, target_dict):
     :param target_dict: dictionary containing target count_NDist, count_X, count_Y
     """
     count_y, _ = np.histogram(raft_locations[:, 0] / raft_radius, edges_y)
-    kldiv_y = kl_divergence(count_y, target_dict['count_X'])
+    kldiv_y = kl_divergence(count_y, target_dict['count_Y'])
     entropy_y = shannon_entropy(count_y)
 
     dict_y = {"count_Y": count_y,
