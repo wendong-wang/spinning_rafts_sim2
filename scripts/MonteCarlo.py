@@ -69,8 +69,13 @@ if not os.path.isdir(dataDir):
 
 # %% Monte Carlo simulation
 # key parameters
-numOfRafts = 50
-numOfTimeSteps = 500
+if parallel_mode == 1:
+    numOfRafts = int(sys.argv[1])
+    spinSpeed = int(sys.argv[2])
+else:
+    numOfRafts = 200
+    spinSpeed = 0
+numOfTimeSteps = 10
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -89,7 +94,7 @@ binEdgesY = list(np.arange(0, arenaSize/R, binSize_XY))
 
 # load target distributions
 os.chdir(dataDir)
-tempShelf = shelve.open('target_' + str(numOfRafts) + "Rafts")
+tempShelf = shelve.open('target_' + str(numOfRafts) + "Rafts_" + str(spinSpeed) + 'rps')
 variableListOfTargetDistributions = list(tempShelf.keys())
 target = {}
 for key in tempShelf:
@@ -102,11 +107,11 @@ tempShelf.close()
 # make folder for the current dataset
 now = datetime.datetime.now()
 if parallel_mode == 1:
-    outputFolderName = now.strftime("%Y-%m-%d") + '_' + str(numOfRafts) + 'Rafts_' + \
-                   'totalSteps' + str(numOfTimeSteps) + '_incrementSize' + str(incrementSize) + 'R'
+    outputFolderName = now.strftime("%Y-%m-%d") + '_' + str(numOfRafts) + 'Rafts_' + 'totalSteps' + \
+                       str(numOfTimeSteps) + '_incrementSize' + str(incrementSize) + 'R_' + str(spinSpeed) + 'rps'
 else:
-    outputFolderName = now.strftime("%Y-%m-%d_%H-%M-%S") + '_' + str(numOfRafts) + 'Rafts_' + \
-                       'totalSteps' + str(numOfTimeSteps) + '_incrementSize' + str(incrementSize) + 'R'
+    outputFolderName = now.strftime("%Y-%m-%d_%H-%M-%S") + '_' + str(numOfRafts) + 'Rafts_' + 'totalSteps' + \
+                       str(numOfTimeSteps) + '_incrementSize' + str(incrementSize) + 'R_' + str(spinSpeed) + 'rps'
 
 if not os.path.isdir(outputFolderName):
     os.mkdir(outputFolderName)
@@ -124,10 +129,10 @@ count_NDist = np.zeros((len(binEdgesNeighborDistances)-1, numOfTimeSteps))
 count_ODist = np.zeros((len(binEdgesOrbitingDistances)-1, numOfTimeSteps))
 count_X = np.zeros((len(binEdgesX)-1, numOfTimeSteps))
 count_Y = np.zeros((len(binEdgesY)-1, numOfTimeSteps))
-klDiv_NDist = np.zeros(numOfTimeSteps)
-klDiv_ODist = np.zeros(numOfTimeSteps)
-klDiv_X = np.zeros(numOfTimeSteps)
-klDiv_Y = np.zeros(numOfTimeSteps)
+klDiv_NDist = np.ones(numOfTimeSteps)
+klDiv_ODist = np.ones(numOfTimeSteps)
+klDiv_X = np.ones(numOfTimeSteps)
+klDiv_Y = np.ones(numOfTimeSteps)
 entropy_NDist = np.zeros(numOfTimeSteps)
 entropy_ODist = np.zeros(numOfTimeSteps)
 entropy_X = np.zeros(numOfTimeSteps)
@@ -206,15 +211,16 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
 
         # if the selected divergences decreases, then accept the move, otherwise reject the move
         if (dict_X["klDiv_X"] <= klDiv_X[currStepNum]) and (dict_Y["klDiv_Y"] <= klDiv_Y[currStepNum]) and \
-                (dict_NDist["klDiv_NDist"] <= klDiv_NDist[currStepNum]) :
+                (dict_NDist["klDiv_NDist"] <= klDiv_NDist[currStepNum]):
             continue
         else:
             newLocations[raftID, :] = newLocations[raftID, :] - incrementInXY
             rejectionRates[currStepNum] += 1
 
-    # if the KL divergences of the global distributions are good, then make smaller incremental size
-    if np.all(klDiv_X[currStepNum - 5: currStepNum] < 1) and np.all(klDiv_Y[currStepNum - 5: currStepNum] < 1):
-        incrementSize = 1
+    # # if the KL divergences of the global distributions are good, then make smaller incremental size
+    # if currStepNum > 100 and np.all(klDiv_X[currStepNum - 5: currStepNum] < 1) and \
+    #         np.all(klDiv_Y[currStepNum - 5: currStepNum] < 1):
+    #     incrementSize = 1
     raftLocations[:, currStepNum + 1, :] = newLocations
 
 # %% plotting simulation results
@@ -284,15 +290,15 @@ entropy_X = fsr.shannon_entropy(count_X)
 count_Y, _ = np.histogram(raftLocations[:, currStepNum, 1] / raftRadius, binEdgesY)
 entropy_Y = fsr.shannon_entropy(count_Y)
 
-listOfVariablesToSave = ['numOfRafts', 'numOfTimeSteps', 'arenaSize',
-                         'raftLocations', 'neighborDistances', 'orbitingDistances',
+listOfVariablesToSave = ['numOfRafts', 'arenaSize', 'spinSpeed',
+                         # 'raftLocations', 'neighborDistances', 'orbitingDistances',
                          'binEdgesNeighborDistances', 'binEdgesOrbitingDistances',
                          'binEdgesX', 'binEdgesX',
                          'entropy_NDist', 'count_NDist',
                          'entropy_ODist', 'count_ODist',
                          'entropy_X', 'count_X',
                          'entropy_Y', 'count_Y']
-tempShelf = shelve.open('target_' + str(numOfRafts) + "Rafts")
+tempShelf = shelve.open('target_' + str(numOfRafts) + "Rafts_" + str(spinSpeed) + 'rps')
 for key in listOfVariablesToSave:
     try:
         tempShelf[key] = globals()[key]
@@ -303,7 +309,6 @@ for key in listOfVariablesToSave:
         # print('ERROR shelving: {0}'.format(key))
         pass
 tempShelf.close()
-
 
 
 # %% plottting for target distributions
