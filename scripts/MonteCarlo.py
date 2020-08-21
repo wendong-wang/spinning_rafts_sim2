@@ -212,6 +212,9 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
             newLocations[raftID, :] = newLocations[raftID, :] - incrementInXY
             rejectionRates[currStepNum] += 1
 
+    # if the KL divergences of the global distributions are good, then make smaller incremental size
+    if np.all(klDiv_X[currStepNum - 5: currStepNum] < 1) and np.all(klDiv_Y[currStepNum - 5: currStepNum] < 1):
+        incrementSize = 1
     raftLocations[:, currStepNum + 1, :] = newLocations
 
 # %% plotting simulation results

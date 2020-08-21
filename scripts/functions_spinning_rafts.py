@@ -518,7 +518,7 @@ def hexagonal_spiral(num_of_rafts, spacing, origin):
     a = b = 0
     da, db = 1, 0
     for i in range(num_of_rafts):
-        noise = np.random.uniform(low=-0.1, high=0.1, size=2)
+        noise = np.random.uniform(low=-1, high=1, size=2) * 0.1 * spacing
         raft_locations[i, :] = np.array([a + b*np.cos(np.pi/3), b*np.sin(np.pi/3)]) * spacing + noise + origin
         if a > 0 and b == 0:
             da, db = -1, +1
