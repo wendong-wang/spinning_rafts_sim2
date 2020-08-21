@@ -70,10 +70,11 @@ if not os.path.isdir(dataDir):
 # %% Monte Carlo simulation
 # key parameters
 numOfRafts = 50
-numOfTimeSteps = 5000
+numOfTimeSteps = 1000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
+incrementSize = 50  # unit: radius
 binSize_NDist = 0.5  # unit: radius
 binStart_NDist = 2  # unit: radius
 binEnd_NDist = 50  # unit: radius
@@ -102,10 +103,10 @@ tempShelf.close()
 now = datetime.datetime.now()
 if parallel_mode == 1:
     outputFolderName = now.strftime("%Y-%m-%d") + '_' + str(numOfRafts) + 'Rafts_' + \
-                   'totalSteps' + str(numOfTimeSteps)
+                   'totalSteps' + str(numOfTimeSteps) + '_incrementSize' + str(incrementSize) + 'R'
 else:
     outputFolderName = now.strftime("%Y-%m-%d_%H-%M-%S") + '_' + str(numOfRafts) + 'Rafts_' + \
-                       'totalSteps' + str(numOfTimeSteps)
+                       'totalSteps' + str(numOfTimeSteps) + '_incrementSize' + str(incrementSize) + 'R'
 
 if not os.path.isdir(outputFolderName):
     os.mkdir(outputFolderName)
@@ -176,35 +177,35 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
     # dict_NDist = fsr.count_kldiv_entropy_ndist(raftLocations[:, currStepNum, :], raftRadius,
     #                                            binEdgesNeighborDistances, target)
     dict_X = fsr.count_kldiv_entropy_x(raftLocations[:, currStepNum, :], raftRadius, binEdgesX, target)
-    # dict_Y = fsr.count_kldiv_entropy_y(raftLocations[:, currStepNum, :], raftRadius, binEdgesY, target)
+    dict_Y = fsr.count_kldiv_entropy_y(raftLocations[:, currStepNum, :], raftRadius, binEdgesY, target)
 
     # assignments
     # count_NDist[:, currStepNum], klDiv_NDist[currStepNum], entropy_NDist[currStepNum] = \
     #     dict_NDist['count_NDist'], dict_NDist['klDiv_NDist'], dict_NDist['entropy_NDist']
     count_X[:, currStepNum], klDiv_X[currStepNum], entropy_X[currStepNum] = \
         dict_X['count_X'], dict_X['klDiv_X'], dict_X['entropy_X']
-    # count_Y[:, currStepNum], klDiv_Y[currStepNum], entropy_Y[currStepNum] = \
-    #     dict_Y['count_Y'], dict_Y['klDiv_Y'], dict_Y['entropy_Y']
+    count_Y[:, currStepNum], klDiv_Y[currStepNum], entropy_Y[currStepNum] = \
+        dict_Y['count_Y'], dict_Y['klDiv_Y'], dict_Y['entropy_Y']
 
     newLocations = raftLocations[:, currStepNum, :].copy()
     for raftID in np.arange(numOfRafts):
         # raftID = 0
-        incrementInXY = np.random.uniform(low=-1, high=1, size=2) * R
+        incrementInXY = np.random.uniform(low=-1, high=1, size=2) * incrementSize * R
         # take care of the cases where moving the rafts outside the arena or overlapping with another raft.
         newXY = newLocations[raftID, :] + incrementInXY
-        while newXY.max() > arenaSize or newXY.min() < 0 or \
+        while newXY.max() > arenaSize - paddingAroundArena * R or newXY.min() < 0 + paddingAroundArena * R or \
               scipy_distance.cdist(newLocations[np.arange(numOfRafts) != raftID, :],
                                    newXY.reshape(1, 2)).min() < 2 * R:
-            incrementInXY = np.random.uniform(low=-1, high=1, size=2) * R
+            incrementInXY = np.random.uniform(low=-1, high=1, size=2) * incrementSize * R
             newXY = newLocations[raftID, :] + incrementInXY
         newLocations[raftID, :] = newXY
 
         # dict_NDist = fsr.count_kldiv_entropy_ndist(newLocations, raftRadius, binEdgesNeighborDistances, target)
         dict_X = fsr.count_kldiv_entropy_x(newLocations, raftRadius, binEdgesX, target)
-        # dict_Y = fsr.count_kldiv_entropy_y(newLocations, raftRadius, binEdgesY, target)
+        dict_Y = fsr.count_kldiv_entropy_y(newLocations, raftRadius, binEdgesY, target)
 
         # if the selected divergences decreases, then accept the move, otherwise reject the move
-        if (dict_X["klDiv_X"] <= klDiv_X[currStepNum]):
+        if (dict_X["klDiv_X"] <= klDiv_X[currStepNum]) and (dict_Y["klDiv_Y"] <= klDiv_Y[currStepNum]):
             continue
         else:
             newLocations[raftID, :] = newLocations[raftID, :] - incrementInXY

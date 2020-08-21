@@ -707,7 +707,7 @@ def count_kldiv_entropy_y(raft_locations, raft_radius, edges_y, target_dict):
     :param edges_y:
     :param target_dict: dictionary containing target count_NDist, count_X, count_Y
     """
-    count_y, _ = np.histogram(raft_locations[:, 0] / raft_radius, edges_y)
+    count_y, _ = np.histogram(raft_locations[:, 1] / raft_radius, edges_y)
     kldiv_y = kl_divergence(count_y, target_dict['count_Y'])
     entropy_y = shannon_entropy(count_y)
 
