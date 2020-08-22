@@ -2,27 +2,6 @@
 This is for the Monte Carlo simulation of the configuration of many rafts
 The maximum characters per line is set to be 120.
 
-The algorithm is as follows:
-randomly put ~200 rafts in a square
-for each step do
-    calculate the distribution of neighbor distances (count_NDist) and marginal distribution of x (count_X)
-    calculate the KL divergence between the simulated distributions and perfect hexagonal one (klDiv_NDist and klDiv_X)
-    for each raft do
-        generate a random movement vector moveInXY, uniformly sampled from [-R, R]^2
-        move the raft
-        if the new position is outside the arena or the new position is within 2R of other rafts
-            move back the raft
-            continue the for loop of next raft
-        calculate count_NDist and count_X of the new configuration
-        calculate klDiv_NDist and klDiv_X
-        if klDiv_NDist OR klDiv_X decreases (this is the key conditional statement)
-            continue the for loop for the next raft
-        else
-            move back the raft
-    end for
-end for
-
-
 """
 # import glob
 import os
@@ -69,13 +48,14 @@ if not os.path.isdir(dataDir):
 
 # %% Monte Carlo simulation
 # key parameters
+os.chdir(dataDir)
 if parallel_mode == 1:
     numOfRafts = int(sys.argv[1])
     spinSpeed = int(sys.argv[2])
 else:
-    numOfRafts = 200
+    numOfRafts = 48
     spinSpeed = 0
-numOfTimeSteps = 150
+numOfTimeSteps = 50000  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -89,11 +69,10 @@ binStart_ODist = 2  # unit: radius
 binEnd_ODist = 50  # unit: radius
 binEdgesOrbitingDistances = list(np.arange(binStart_ODist, binEnd_ODist, binSize_ODist)) + [100]
 binSize_XY = 2  # unit: radius
-binEdgesX = list(np.arange(0, arenaSize/R, binSize_XY))
-binEdgesY = list(np.arange(0, arenaSize/R, binSize_XY))
+binEdgesX = list(np.arange(0, arenaSize/R + binSize_XY, binSize_XY))
+binEdgesY = list(np.arange(0, arenaSize/R + binSize_XY, binSize_XY))
 
 # load target distributions
-os.chdir(dataDir)
 tempShelf = shelve.open('target_' + str(numOfRafts) + "Rafts_" + str(spinSpeed) + 'rps')
 variableListOfTargetDistributions = list(tempShelf.keys())
 target = {}
@@ -180,6 +159,7 @@ cv.imwrite(outputImageName, currentFrameBGR)
 
 # try run optimization on x and y distribution first, once they are below a certain threshold, start optimizing NDist
 runNDist = 0
+switchThreshold = (1/numOfRafts) * np.log2(1e9/numOfRafts) * 2  # penalty for two raft in the probability zero region
 for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
     dict_X = fsr.count_kldiv_entropy_x(raftLocations[:, currStepNum, :], raftRadius, binEdgesX, target)
     dict_Y = fsr.count_kldiv_entropy_y(raftLocations[:, currStepNum, :], raftRadius, binEdgesY, target)
@@ -225,8 +205,8 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
             rejectionRates[currStepNum] += 1
 
     # if the KL divergences of the global distributions are good, then switch on runNDist
-    if currStepNum > 100 and np.all(klDiv_X[currStepNum - 5: currStepNum] < 1) and \
-            np.all(klDiv_Y[currStepNum - 5: currStepNum] < 1):
+    if currStepNum > 100 and np.all(klDiv_X[currStepNum - 5: currStepNum] < switchThreshold) and \
+            np.all(klDiv_Y[currStepNum - 5: currStepNum] < switchThreshold):
         runNDist = 1
     raftLocations[:, currStepNum + 1, :] = newLocations
 
@@ -309,6 +289,40 @@ ax.legend()
 plt.show()
 figName = 'Histogram of marginal distribution of y'
 fig.savefig(figName)
+
+# save last frame
+currentFrameBGR = fsr.draw_rafts_rh_coord(blankFrameBGR.copy(),
+                                          np.int32(raftLocations[:, currStepNum, :] / scaleBar),
+                                          np.int64(raftRadii / scaleBar), numOfRafts)
+currentFrameBGR = fsr.draw_raft_num_rh_coord(currentFrameBGR,
+                                             np.int64(raftLocations[:, currStepNum, :] / scaleBar),
+                                             numOfRafts)
+
+outputFileName = 'MonteCarlo_' + str(numOfRafts) + 'Rafts_' + 'startPosMeth' + str(initialPositionMethod) \
+                 + '_numOfSteps' + str(numOfTimeSteps) + '_currStep'
+
+outputImageName = outputFileName + str(currStepNum).zfill(7) + '.jpg'
+cv.imwrite(outputImageName, currentFrameBGR)
+
+listOfVariablesToSave = ['numOfRafts', 'arenaSize', 'spinSpeed',
+                         'raftLocations',
+                         'binEdgesNeighborDistances', 'binEdgesOrbitingDistances',
+                         'binEdgesX', 'binEdgesX',
+                         'entropy_NDist', 'count_NDist',
+                         'entropy_ODist', 'count_ODist',
+                         'entropy_X', 'count_X',
+                         'entropy_Y', 'count_Y']
+tempShelf = shelve.open('target_' + str(numOfRafts) + "Rafts_" + str(spinSpeed) + 'rps')
+for key in listOfVariablesToSave:
+    try:
+        tempShelf[key] = globals()[key]
+    except TypeError:
+        #
+        # __builtins__, tempShelf, and imported modules can not be shelved.
+        #
+        # print('ERROR shelving: {0}'.format(key))
+        pass
+tempShelf.close()
 
 # %% generating target dataset
 # first run the previous section till the desired target pattern is generated
