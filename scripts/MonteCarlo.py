@@ -55,7 +55,7 @@ if parallel_mode == 1:
 else:
     numOfRafts = 218
     spinSpeed = 25
-numOfTimeSteps = 10000  # 80000
+numOfTimeSteps = 200  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -64,6 +64,10 @@ binSize_NDist = 0.5  # unit: radius
 binStart_NDist = 2  # unit: radius
 binEnd_NDist = 50  # unit: radius
 binEdgesNeighborDistances = list(np.arange(binStart_NDist, binEnd_NDist, binSize_NDist)) + [100]
+binSize_NAngles = 10  # unit: deg
+binStart_NAngles = 0  # unit: deg
+binEnd_NAngles = 360  # unit: deg
+binEdgesNeighborAngles = list(np.arange(binStart_NAngles, binEnd_NAngles, binSize_NAngles)) + [360]
 binSize_ODist = 0.5  # unit: radius
 binStart_ODist = 2  # unit: radius
 binEnd_ODist = 50  # unit: radius
@@ -85,7 +89,7 @@ tempShelf.close()
 # readjust parameters according to the target distributions
 binEdgesX = target['binEdgesX']
 binEdgesY = target['binEdgesY']
-arenaSize = target['sizeOfArenaInRadius_pixels'] * R
+arenaSize = target['arenaSizeInR'] * R
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 
 # make folder for the current dataset
@@ -110,17 +114,21 @@ blankFrameBGR = np.ones((canvasSizeInPixel, canvasSizeInPixel, 3), dtype='int32'
 raftLocations = np.zeros((numOfRafts, numOfTimeSteps, 2))  # in microns
 raftRadii = np.ones(numOfRafts) * raftRadius  # in micron
 count_NDist = np.zeros((len(binEdgesNeighborDistances)-1, numOfTimeSteps))
+count_NAngles = np.zeros((len(binEdgesNeighborAngles)-1, numOfTimeSteps))
 count_ODist = np.zeros((len(binEdgesOrbitingDistances)-1, numOfTimeSteps))
 count_X = np.zeros((len(binEdgesX)-1, numOfTimeSteps))
 count_Y = np.zeros((len(binEdgesY)-1, numOfTimeSteps))
 klDiv_NDist = np.ones(numOfTimeSteps)
+klDiv_NAngles = np.ones(numOfTimeSteps)
 klDiv_ODist = np.ones(numOfTimeSteps)
 klDiv_X = np.ones(numOfTimeSteps)
 klDiv_Y = np.ones(numOfTimeSteps)
 entropy_NDist = np.zeros(numOfTimeSteps)
+entropy_NAngles = np.zeros(numOfTimeSteps)
 entropy_ODist = np.zeros(numOfTimeSteps)
 entropy_X = np.zeros(numOfTimeSteps)
 entropy_Y = np.zeros(numOfTimeSteps)
+hexOrderParas = np.zeros((numOfRafts, numOfTimeSteps), dtype="complex")
 rejectionRates = np.zeros(numOfTimeSteps)
 
 # initialize rafts positions: 1 - random positions, 2 - fixed initial position,
@@ -164,6 +172,7 @@ cv.imwrite(outputImageName, currentFrameBGR)
 
 # try run optimization on x and y distribution first, once they are below a certain threshold, start optimizing NDist
 runNDist = 0  # switch for running NDist or not
+runNDist_NAngles = 0
 beta = 1000  # inverse of effective temperature
 switchThreshold = (1/numOfRafts) * np.log2(1e9/numOfRafts) * 1.5  # penalty for rafts in the probability zero region
 for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
@@ -180,6 +189,17 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
                                                    binEdgesNeighborDistances, target)
         count_NDist[:, currStepNum], klDiv_NDist[currStepNum], entropy_NDist[currStepNum] = \
             dict_NDist['count_NDist'], dict_NDist['klDiv_NDist'], dict_NDist['entropy_NDist']
+
+    if runNDist_NAngles == 1:
+        dict_NDist_NAngles = fsr.count_kldiv_entropy_ndist_nangles(raftLocations[:, currStepNum, :], raftRadius,
+                                                                   binEdgesNeighborDistances, binEdgesNeighborAngles,
+                                                                   target)
+        count_NDist[:, currStepNum], klDiv_NDist[currStepNum], entropy_NDist[currStepNum] = \
+            dict_NDist_NAngles['count_NDist'], dict_NDist_NAngles['klDiv_NDist'], dict_NDist_NAngles['entropy_NDist']
+        count_NAngles[:, currStepNum], klDiv_NAngles[currStepNum], entropy_NAngles[currStepNum] = \
+            dict_NDist_NAngles['count_NAngles'], dict_NDist_NAngles['klDiv_NAngles'], \
+            dict_NDist_NAngles['entropy_NAngles']
+        hexOrderParas[:, currStepNum] = dict_NDist_NAngles['hexOrderParas']
 
     newLocations = raftLocations[:, currStepNum, :].copy()
     for raftID in np.arange(numOfRafts):
@@ -198,14 +218,21 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
         dict_Y = fsr.count_kldiv_entropy_y(newLocations, raftRadius, binEdgesY, target)
         if runNDist == 1:
             dict_NDist = fsr.count_kldiv_entropy_ndist(newLocations, raftRadius, binEdgesNeighborDistances, target)
+        if runNDist_NAngles == 1:
+            dict_NDist_NAngles = fsr.count_kldiv_entropy_ndist_nangles(newLocations, raftRadius,
+                                                                       binEdgesNeighborDistances,
+                                                                       binEdgesNeighborAngles, target)
 
         # calculate the difference in divergences
         diff_klDiv_X = dict_X["klDiv_X"] - klDiv_X[currStepNum]
         diff_klDiv_Y = dict_Y["klDiv_Y"] - klDiv_Y[currStepNum]
         if runNDist == 1:
             diff_klDiv_NDist = dict_NDist["klDiv_NDist"] - klDiv_NDist[currStepNum]
+        if runNDist_NAngles == 1:
+            diff_klDiv_NDist = dict_NDist_NAngles["klDiv_NDist"] - klDiv_NDist[currStepNum]
+            diff_klDiv_NAngles = dict_NDist_NAngles["klDiv_NAngles"] - klDiv_NDist[currStepNum]
         # accept the move if the dievergences decrease, otherwise accept/reject according to probability
-        if runNDist == 0:
+        if runNDist == 0 and runNDist_NAngles == 0:
             if (diff_klDiv_X <= 0) and (diff_klDiv_Y <= 0):
                 continue
             else:
@@ -224,11 +251,25 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
                 else:
                     newLocations[raftID, :] = newLocations[raftID, :] - incrementInXY
                     rejectionRates[currStepNum] += 1
+        elif runNDist_NAngles == 1:
+            if (diff_klDiv_X <= 0) and (diff_klDiv_Y <= 0) and (diff_klDiv_NDist <= 0) and (diff_klDiv_NAngles <= 0):
+                continue
+            else:
+                randomProb = np.random.uniform(low=0, high=1, size=1)
+                diff_max = np.array((diff_klDiv_X, diff_klDiv_Y, diff_klDiv_NDist, diff_klDiv_NAngles)).max()
+                # higher diff or higher beta means less likely to jump
+                jumpThresholdProb = np.exp(- diff_max * beta)
+                if randomProb < np.exp(- diff_max * beta):
+                    continue
+                else:
+                    newLocations[raftID, :] = newLocations[raftID, :] - incrementInXY
+                    rejectionRates[currStepNum] += 1
 
     # if the KL divergences of the global distributions are good, then switch on runNDist
     if currStepNum > 100 and np.all(klDiv_X[currStepNum - 5: currStepNum] < switchThreshold) and \
             np.all(klDiv_Y[currStepNum - 5: currStepNum] < switchThreshold):
-        runNDist = 1
+        runNDist_NAngles = 1
+        # runNDist = 1
         incrementSize = 20  # unit: radius
     raftLocations[:, currStepNum + 1, :] = newLocations
 
@@ -348,31 +389,75 @@ tempShelf.close()
 
 # %% generating target dataset
 # first run the previous section till the desired target pattern is generated
-currStepNum = 0
-# distribution by neighbor distances
-neighborDistances = fsr.neighbor_distances_array(raftLocations[:, currStepNum, :])
-count_NDist, _ = np.histogram(np.asarray(neighborDistances) / raftRadius, binEdgesNeighborDistances)
+# currStepNum = 0
+# raftLocationsOneFrame = raftLocations[:, currStepNum, :]  # directly simulated pattern, unit in micron
+
+readingFromExp = 1
+if readingFromExp == 1:
+    count_NDist = target['count_NDist']
+    count_X = target['count_X']
+    count_Y = target['count_Y']
+    binEdgesNeighborDistances = target['binEdgesNeighborDistances']  # in unit of R
+    binEdgesOrbitingDistances = binEdgesNeighborDistances  # in R
+    binEdgesX = target['binEdgesX']  # in R
+    binEdgesY = target['binEdgesY']  # in R
+    raftLocations = target['raftLocations']  # in pixel
+    radiusInPixel = target['radius']  # R in pixel
+    raftRadius = radiusInPixel  # replace the original R, which is in micron
+    arenaSizeInR = target['sizeOfArenaInRadius_pixels']  # arena size in R
+    arenaSizeInPixel = arenaSizeInR * radiusInPixel
+    arenaScaleFactor = arenaSizeInPixel / canvasSizeInPixel  # canvas size is 1000, arena size is about ~1720
+
+    # draw the experimental image, make sure that you are in a newly created folder
+    currentFrameBGR = fsr.draw_rafts_rh_coord(blankFrameBGR.copy(),
+                                              np.int32(raftLocations[:, -1, :] / arenaScaleFactor),
+                                              np.int64(raftRadii / scaleBar), numOfRafts)
+    currentFrameBGR = fsr.draw_raft_num_rh_coord(currentFrameBGR,
+                                                 np.int64(raftLocations[:, -1, :] / arenaScaleFactor),
+                                                 numOfRafts)
+    outputFileName = 'Exp_' + str(numOfRafts) + 'Rafts'
+    outputImageName = outputFileName + '.jpg'
+    cv.imwrite(outputImageName, currentFrameBGR)
+
+# use the raft location in one frame (last) to calculate all the distributions
+raftLocationsOneFrame = raftLocations[:, -1, :]  # get the last frame, unit in pixel
+
+# distribution by neighbor distances and neighbor angles
+neighborDistances, neighborAngles, hexOrderParas = fsr.neighbor_distances_angles_array(raftLocationsOneFrame)
+count_NDist, _ = np.histogram(neighborDistances / raftRadius, binEdgesNeighborDistances)
+count_NAngles, _ = np.histogram(neighborAngles, binEdgesNeighborAngles)
+# count_NAngles[0] -= numOfRafts
 entropy_NDist = fsr.shannon_entropy(count_NDist)
+entropy_NAngles = fsr.shannon_entropy(count_NAngles)
+hexaticOrderParameterAvg = hexOrderParas.mean()
+hexaticOrderParameterAvgNorm = np.sqrt(hexaticOrderParameterAvg.real ** 2 + hexaticOrderParameterAvg.imag ** 2)
+hexaticOrderParameterModulii = np.absolute(hexOrderParas)
+hexaticOrderParameterModuliiAvgs = hexaticOrderParameterModulii.mean()
+hexaticOrderParameterModuliiStds = hexaticOrderParameterModulii.std()
 
 # distribution by orbiting distances
-centerOfMass = raftLocations[:, currStepNum, :].mean(axis=0, keepdims=True)
-orbitingDistances = scipy_distance.cdist(raftLocations[:, currStepNum, :], centerOfMass, 'euclidean')
+centerOfMass = raftLocationsOneFrame.mean(axis=0, keepdims=True)
+orbitingDistances = scipy_distance.cdist(raftLocationsOneFrame, centerOfMass, 'euclidean')
 count_ODist, _ = np.histogram(np.asarray(orbitingDistances) / raftRadius, binEdgesOrbitingDistances)
 entropy_ODist = fsr.shannon_entropy(count_ODist)
 
 # distribution by X
-count_X, _ = np.histogram(raftLocations[:, currStepNum, 0] / raftRadius, binEdgesX)
+count_X, _ = np.histogram(raftLocationsOneFrame / raftRadius, binEdgesX)
 entropy_X = fsr.shannon_entropy(count_X)
 
 # distribution by y
-count_Y, _ = np.histogram(raftLocations[:, currStepNum, 1] / raftRadius, binEdgesY)
+count_Y, _ = np.histogram(raftLocationsOneFrame / raftRadius, binEdgesY)
 entropy_Y = fsr.shannon_entropy(count_Y)
 
-listOfVariablesToSave = ['numOfRafts', 'arenaSize', 'spinSpeed',
-                         # 'raftLocations', 'neighborDistances', 'orbitingDistances',
-                         'binEdgesNeighborDistances', 'binEdgesOrbitingDistances',
-                         'binEdgesX', 'binEdgesX',
+listOfVariablesToSave = ['numOfRafts', 'arenaSize', 'spinSpeed', 'arenaSizeInR',
+                         'raftLocationsOneFrame', 'neighborDistances', 'neighborAngles', 'hexOrderParas',
+                         'hexaticOrderParameterAvg', 'hexaticOrderParameterAvgNorm', 'hexaticOrderParameterModulii',
+                         'hexaticOrderParameterModuliiAvgs', 'hexaticOrderParameterModuliiAvgs',
+                         'orbitingDistances',
+                         'binEdgesNeighborDistances', 'binEdgesOrbitingDistances', 'binEdgesNeighborAngles',
+                         'binEdgesX', 'binEdgesY',
                          'entropy_NDist', 'count_NDist',
+                         'entropy_NAngles', 'count_NAngles',
                          'entropy_ODist', 'count_ODist',
                          'entropy_X', 'count_X',
                          'entropy_Y', 'count_Y']
@@ -391,30 +476,6 @@ tempShelf.close()
 
 # %% plotting for target distributions
 # Histogram of target neighbor distances
-readingFromExp = 1
-if readingFromExp == 1:
-    count_NDist = target['count_NDist']
-    count_X = target['count_X']
-    count_Y = target['count_Y']
-    binEdgesNeighborDistances = target['binEdgesNeighborDistances']
-    binEdgesX = target['binEdgesX']
-    binEdgesY = target['binEdgesY']
-    raftLocations = target['raftLocations']  # in pixel
-    radiusInPixel = target['radius']  # R in pixel
-    arenaSizeInR = target['sizeOfArenaInRadius_pixels']  # arena size in R
-    arenaSizeInPixel = arenaSizeInR * radiusInPixel
-    arenaScaleFactor = arenaSizeInPixel / canvasSizeInPixel  #
-    currentFrameBGR = fsr.draw_rafts_rh_coord(blankFrameBGR.copy(),
-                                              np.int32(raftLocations[:, -1, :] / arenaScaleFactor ),
-                                              np.int64(raftRadii / scaleBar), numOfRafts)
-    currentFrameBGR = fsr.draw_raft_num_rh_coord(currentFrameBGR,
-                                                 np.int64(raftLocations[:, -1, :] / arenaScaleFactor),
-                                                 numOfRafts)
-    outputFileName = 'Exp_' + str(numOfRafts) + 'Rafts'
-    outputImageName = outputFileName + '.jpg'
-    cv.imwrite(outputImageName, currentFrameBGR)
-
-
 fig, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(binEdgesNeighborDistances[:-1], count_NDist / count_NDist.sum(),
         label='NDist distribution')
@@ -426,19 +487,31 @@ plt.show()
 figName = 'Histogram of neighbor distances'
 fig.savefig(figName)
 
+# Histogram of target neighbor angles
+fig, ax = plt.subplots(ncols=1, nrows=1)
+ax.plot(binEdgesNeighborAngles[:-1], count_NAngles / count_NAngles.sum(),
+        label='NAngles distribution')
+ax.set_xlabel('neighbor angles', size=20)
+ax.set_ylabel('probability', size=20)
+ax.set_title('histogram of neighbor angles')
+ax.legend()
+plt.show()
+figName = 'Histogram of neighbor angles'
+fig.savefig(figName)
+
 # Histogram of target orbiting distances
-# fig, ax = plt.subplots(ncols=1, nrows=1)
-# ax.plot(binEdgesOrbitingDistances[:-1], count_ODist / count_ODist.sum(),
-#         label='ODist distribution')
-# # ax.plot(np.arange(binStart, binEnd_ODist, binSize), count_ODist / count_ODist.sum() /
-# #         (0.5*binEdgesOrbitingDistances[0:-1] + 0.5*binEdgesOrbitingDistances[1:]), label='normal ODist distribution')
-# ax.set_xlabel('radial distance r', size=20)
-# ax.set_ylabel('probability', size=20)
-# ax.set_title('histogram of orbiting distances')
-# ax.legend()
-# plt.show()
-# figName = 'Histogram of orbiting distances'
-# fig.savefig(figName)
+fig, ax = plt.subplots(ncols=1, nrows=1)
+ax.plot(binEdgesOrbitingDistances[:-1], count_ODist / count_ODist.sum(),
+        label='ODist distribution')
+# ax.plot(np.arange(binStart, binEnd_ODist, binSize), count_ODist / count_ODist.sum() /
+#         (0.5*binEdgesOrbitingDistances[0:-1] + 0.5*binEdgesOrbitingDistances[1:]), label='normal ODist distribution')
+ax.set_xlabel('radial distance r', size=20)
+ax.set_ylabel('probability', size=20)
+ax.set_title('histogram of orbiting distances')
+ax.legend()
+plt.show()
+figName = 'Histogram of orbiting distances'
+fig.savefig(figName)
 
 fig, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(binEdgesX[:-1], count_X / count_X.sum(), label='marginal distribution of x')

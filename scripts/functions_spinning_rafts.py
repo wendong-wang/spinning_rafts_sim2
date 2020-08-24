@@ -569,6 +569,53 @@ def neighbor_distances_array(raft_locations):
     return np.concatenate(neighbor_distances)
 
 
+def neighbor_distances_angles_array(raft_locations):
+    """
+    :param raft_locations: shape: (num of rafts, 2)
+    """
+    num_of_rafts, _ = raft_locations.shape
+    pairwise_distances = scipy_distance.cdist(raft_locations, raft_locations, 'euclidean')
+    # Voronoi calculation
+    vor = scipyVoronoi(raft_locations)
+    all_vertices = vor.vertices
+    neighbor_pairs = vor.ridge_points  # row# is the index of a ridge,
+    # columns are the two point# that correspond to the ridge
+
+    ridge_vertex_pairs = np.asarray(vor.ridge_vertices)  # row# is the index of a ridge,
+    # columns are two vertex# of the ridge
+
+    neighbor_distances = []
+    neighbor_angles = []
+    hex_order_parameters = []
+    # calculate hexatic order parameter and entropy by neighbor distances
+    for raftID in np.arange(num_of_rafts):
+        # raftID = 0
+        r_i = raft_locations[raftID, :]  # unit: micron
+
+        # neighbors of this particular raft:
+        ridge_indices0 = np.nonzero(neighbor_pairs[:, 0] == raftID)
+        ridge_indices1 = np.nonzero(neighbor_pairs[:, 1] == raftID)
+        ridge_indices = np.concatenate((ridge_indices0, ridge_indices1), axis=None)
+        neighbor_pairs_of_one_raft = neighbor_pairs[ridge_indices, :]
+        nns_of_one_raft = np.concatenate((neighbor_pairs_of_one_raft[neighbor_pairs_of_one_raft[:, 0] == raftID, 1],
+                                          neighbor_pairs_of_one_raft[neighbor_pairs_of_one_raft[:, 1] == raftID, 0]))
+        neighbor_distances.append(pairwise_distances[raftID, nns_of_one_raft])
+
+        # calculate hexatic order parameter of this one raft
+        neighbor_locations = raft_locations[nns_of_one_raft, :]
+        neighbor_angles_in_rad = np.arctan2(-(neighbor_locations[:, 1] - r_i[1]),
+                                            (neighbor_locations[:, 0] - r_i[0]))
+        neighbor_angles_in_rad_rezeroed = neighbor_angles_in_rad - neighbor_angles_in_rad.min()
+        neighbor_angles.append(np.rad2deg(neighbor_angles_in_rad_rezeroed))
+        # negative sign to make angle in the right-handed coordinate
+
+        raft_hexatic_order_parameter = \
+            np.cos(neighbor_angles_in_rad * 6).mean() + np.sin(neighbor_angles_in_rad * 6).mean() * 1j
+        hex_order_parameters.append(raft_hexatic_order_parameter)
+
+    return np.concatenate(neighbor_distances), np.concatenate(neighbor_angles), np.asarray(hex_order_parameters)
+
+
 def kl_divergence(p, q):
     """
     calculate the KL divergence of two distributions
@@ -660,6 +707,35 @@ def count_kldiv_entropy_ndist(raft_locations, raft_radius, edges_ndist, target_d
                   "klDiv_NDist": kldiv_ndist,
                   "entropy_NDist": entropy_ndist}
     return dict_ndist
+
+
+def count_kldiv_entropy_ndist_nangles(raft_locations, raft_radius, edges_ndist, edges_nangles, target_dict):
+    """
+    calculate the count/distribution, KL divergence and entropy of neighbor distances
+    :param raft_locations:
+    :param raft_radius:
+    :param edges_ndist:
+    :param edges_nangles:
+    :param target_dict: dictionary containing target count_NDist, count_X, count_Y
+    """
+    neighbor_distances, neighbor_angles, hex_ord_paras = neighbor_distances_angles_array(raft_locations)
+
+    count_ndist, _ = np.histogram(neighbor_distances / raft_radius, edges_ndist)
+    kldiv_ndist = kl_divergence(count_ndist, target_dict['count_NDist'])
+    entropy_ndist = shannon_entropy(count_ndist)
+
+    count_nangles, _ = np.histogram(neighbor_angles, edges_nangles)
+    kldiv_nangles = kl_divergence(count_nangles, target_dict['count_NAngles'])
+    entropy_nangles = shannon_entropy(count_nangles)
+
+    dict_ndist_nangles = {"count_NDist": count_ndist,
+                          "klDiv_NDist": kldiv_ndist,
+                          "entropy_NDist": entropy_ndist,
+                          "count_NAngles": count_nangles,
+                          "klDiv_NAngles": kldiv_nangles,
+                          "entropy_NAngles": entropy_nangles,
+                          "hexOrderParas": hex_ord_paras}
+    return dict_ndist_nangles
 
 
 def count_kldiv_entropy_odist(raft_locations, raft_radius, edges_odist, target_dict):
