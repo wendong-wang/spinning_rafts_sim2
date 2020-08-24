@@ -53,9 +53,9 @@ if parallel_mode == 1:
     numOfRafts = int(sys.argv[1])
     spinSpeed = int(sys.argv[2])
 else:
-    numOfRafts = 48
-    spinSpeed = 0
-numOfTimeSteps = 50000  # 80000
+    numOfRafts = 218
+    spinSpeed = 25
+numOfTimeSteps = 10000  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -82,6 +82,11 @@ for key in tempShelf:
     except TypeError:
         pass
 tempShelf.close()
+# readjust parameters according to the target distributions
+binEdgesX = target['binEdgesX']
+binEdgesY = target['binEdgesY']
+arenaSize = target['sizeOfArenaInRadius_pixels'] * R
+centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 
 # make folder for the current dataset
 now = datetime.datetime.now()
@@ -158,8 +163,9 @@ outputImageName = outputFileName + str(currStepNum).zfill(7) + '.jpg'
 cv.imwrite(outputImageName, currentFrameBGR)
 
 # try run optimization on x and y distribution first, once they are below a certain threshold, start optimizing NDist
-runNDist = 0
-switchThreshold = (1/numOfRafts) * np.log2(1e9/numOfRafts) * 2  # penalty for two raft in the probability zero region
+runNDist = 0  # switch for running NDist or not
+beta = 1000  # inverse of effective temperature
+switchThreshold = (1/numOfRafts) * np.log2(1e9/numOfRafts) * 1.5  # penalty for rafts in the probability zero region
 for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
     dict_X = fsr.count_kldiv_entropy_x(raftLocations[:, currStepNum, :], raftRadius, binEdgesX, target)
     dict_Y = fsr.count_kldiv_entropy_y(raftLocations[:, currStepNum, :], raftRadius, binEdgesY, target)
@@ -193,21 +199,37 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
         if runNDist == 1:
             dict_NDist = fsr.count_kldiv_entropy_ndist(newLocations, raftRadius, binEdgesNeighborDistances, target)
 
-        # if the selected divergences decreases, then accept the move, otherwise reject the move
-        if runNDist == 0 and (dict_X["klDiv_X"] <= klDiv_X[currStepNum]) and \
-                (dict_Y["klDiv_Y"] <= klDiv_Y[currStepNum]):
-            continue
-        elif runNDist == 1 and (dict_X["klDiv_X"] <= klDiv_X[currStepNum]) and \
-                (dict_Y["klDiv_Y"] <= klDiv_Y[currStepNum]) and (dict_NDist["klDiv_NDist"] <= klDiv_NDist[currStepNum]):
-            continue
-        else:
-            newLocations[raftID, :] = newLocations[raftID, :] - incrementInXY
-            rejectionRates[currStepNum] += 1
+        # calculate the difference in divergences
+        diff_klDiv_X = dict_X["klDiv_X"] - klDiv_X[currStepNum]
+        diff_klDiv_Y = dict_Y["klDiv_Y"] - klDiv_Y[currStepNum]
+        if runNDist == 1:
+            diff_klDiv_NDist = dict_NDist["klDiv_NDist"] - klDiv_NDist[currStepNum]
+        # accept the move if the dievergences decrease, otherwise accept/reject according to probability
+        if runNDist == 0:
+            if (diff_klDiv_X <= 0) and (diff_klDiv_Y <= 0):
+                continue
+            else:
+                newLocations[raftID, :] = newLocations[raftID, :] - incrementInXY
+                rejectionRates[currStepNum] += 1
+        elif runNDist == 1:
+            if (diff_klDiv_X <= 0) and (diff_klDiv_Y <= 0) and (diff_klDiv_NDist <= 0):
+                continue
+            else:
+                randomProb = np.random.uniform(low=0, high=1, size=1)
+                diff_max = np.array((diff_klDiv_X, diff_klDiv_Y, diff_klDiv_NDist)).max()
+                # higher diff or higher beta means less likely to jump
+                jumpThresholdProb = np.exp(- diff_max * beta)
+                if randomProb < np.exp(- diff_max * beta):
+                    continue
+                else:
+                    newLocations[raftID, :] = newLocations[raftID, :] - incrementInXY
+                    rejectionRates[currStepNum] += 1
 
     # if the KL divergences of the global distributions are good, then switch on runNDist
     if currStepNum > 100 and np.all(klDiv_X[currStepNum - 5: currStepNum] < switchThreshold) and \
             np.all(klDiv_Y[currStepNum - 5: currStepNum] < switchThreshold):
         runNDist = 1
+        incrementSize = 20  # unit: radius
     raftLocations[:, currStepNum + 1, :] = newLocations
 
 # %% plotting simulation results
@@ -369,8 +391,32 @@ tempShelf.close()
 
 # %% plotting for target distributions
 # Histogram of target neighbor distances
+readingFromExp = 1
+if readingFromExp == 1:
+    count_NDist = target['count_NDist']
+    count_X = target['count_X']
+    count_Y = target['count_Y']
+    binEdgesNeighborDistances = target['binEdgesNeighborDistances']
+    binEdgesX = target['binEdgesX']
+    binEdgesY = target['binEdgesY']
+    raftLocations = target['raftLocations']  # in pixel
+    radiusInPixel = target['radius']  # R in pixel
+    arenaSizeInR = target['sizeOfArenaInRadius_pixels']  # arena size in R
+    arenaSizeInPixel = arenaSizeInR * radiusInPixel
+    arenaScaleFactor = arenaSizeInPixel / canvasSizeInPixel  #
+    currentFrameBGR = fsr.draw_rafts_rh_coord(blankFrameBGR.copy(),
+                                              np.int32(raftLocations[:, -1, :] / arenaScaleFactor ),
+                                              np.int64(raftRadii / scaleBar), numOfRafts)
+    currentFrameBGR = fsr.draw_raft_num_rh_coord(currentFrameBGR,
+                                                 np.int64(raftLocations[:, -1, :] / arenaScaleFactor),
+                                                 numOfRafts)
+    outputFileName = 'Exp_' + str(numOfRafts) + 'Rafts'
+    outputImageName = outputFileName + '.jpg'
+    cv.imwrite(outputImageName, currentFrameBGR)
+
+
 fig, ax = plt.subplots(ncols=1, nrows=1)
-ax.plot(np.arange(binStart_NDist, binEnd_NDist, binSize_NDist), count_NDist / count_NDist.sum(),
+ax.plot(binEdgesNeighborDistances[:-1], count_NDist / count_NDist.sum(),
         label='NDist distribution')
 ax.set_xlabel('edge-edge distance', size=20)
 ax.set_ylabel('probability', size=20)
@@ -381,18 +427,18 @@ figName = 'Histogram of neighbor distances'
 fig.savefig(figName)
 
 # Histogram of target orbiting distances
-fig, ax = plt.subplots(ncols=1, nrows=1)
-ax.plot(np.arange(binStart_ODist, binEnd_ODist, binSize_ODist), count_ODist / count_ODist.sum(),
-        label='ODist distribution')
-# ax.plot(np.arange(binStart, binEnd_ODist, binSize), count_ODist / count_ODist.sum() /
-#         (0.5*binEdgesOrbitingDistances[0:-1] + 0.5*binEdgesOrbitingDistances[1:]), label='normal ODist distribution')
-ax.set_xlabel('radial distance r', size=20)
-ax.set_ylabel('probability', size=20)
-ax.set_title('histogram of orbiting distances')
-ax.legend()
-plt.show()
-figName = 'Histogram of orbiting distances'
-fig.savefig(figName)
+# fig, ax = plt.subplots(ncols=1, nrows=1)
+# ax.plot(binEdgesOrbitingDistances[:-1], count_ODist / count_ODist.sum(),
+#         label='ODist distribution')
+# # ax.plot(np.arange(binStart, binEnd_ODist, binSize), count_ODist / count_ODist.sum() /
+# #         (0.5*binEdgesOrbitingDistances[0:-1] + 0.5*binEdgesOrbitingDistances[1:]), label='normal ODist distribution')
+# ax.set_xlabel('radial distance r', size=20)
+# ax.set_ylabel('probability', size=20)
+# ax.set_title('histogram of orbiting distances')
+# ax.legend()
+# plt.show()
+# figName = 'Histogram of orbiting distances'
+# fig.savefig(figName)
 
 fig, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(binEdgesX[:-1], count_X / count_X.sum(), label='marginal distribution of x')
@@ -413,5 +459,7 @@ ax.legend()
 plt.show()
 figName = 'Histogram of marginal distribution of y'
 fig.savefig(figName)
+
+
 
 #%% old snippets, may or may not be useful
