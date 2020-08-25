@@ -581,7 +581,7 @@ def neighbor_distances_angles_array(raft_locations):
     neighbor_pairs = vor.ridge_points  # row# is the index of a ridge,
     # columns are the two point# that correspond to the ridge
 
-    ridge_vertex_pairs = np.asarray(vor.ridge_vertices)  # row# is the index of a ridge,
+    # ridge_vertex_pairs = np.asarray(vor.ridge_vertices)  # row# is the index of a ridge, not in use
     # columns are two vertex# of the ridge
 
     neighbor_distances = []
@@ -725,7 +725,7 @@ def count_kldiv_entropy_ndist_nangles(raft_locations, raft_radius, edges_ndist, 
     entropy_ndist = shannon_entropy(count_ndist)
 
     count_nangles, _ = np.histogram(neighbor_angles, edges_nangles)
-    kldiv_nangles = kl_divergence(count_nangles, target_dict['count_NAngles'])
+    kldiv_nangles = kl_divergence(count_nangles[1:], target_dict['count_NAngles'][1:])   # 0 degree does not count
     entropy_nangles = shannon_entropy(count_nangles)
 
     dict_ndist_nangles = {"count_NDist": count_ndist,

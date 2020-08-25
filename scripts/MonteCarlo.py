@@ -55,7 +55,7 @@ if parallel_mode == 1:
 else:
     numOfRafts = 218
     spinSpeed = 25
-numOfTimeSteps = 200  # 80000
+numOfTimeSteps = 15000  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -268,8 +268,8 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
     # if the KL divergences of the global distributions are good, then switch on runNDist
     if currStepNum > 100 and np.all(klDiv_X[currStepNum - 5: currStepNum] < switchThreshold) and \
             np.all(klDiv_Y[currStepNum - 5: currStepNum] < switchThreshold):
-        runNDist_NAngles = 1
-        # runNDist = 1
+        # runNDist_NAngles = 1
+        runNDist = 1
         incrementSize = 20  # unit: radius
     raftLocations[:, currStepNum + 1, :] = newLocations
 
@@ -283,6 +283,16 @@ ax.set_title('KL divergence of NDist')
 ax.legend()
 plt.show()
 figName = 'KL divergence of NDist'
+fig.savefig(figName)
+
+fig, ax = plt.subplots(ncols=1, nrows=1)
+ax.plot(np.arange(numOfTimeSteps - 1), klDiv_NAngles[:-1], label='kldiv_NAngles vs steps')
+ax.set_xlabel('time steps', size=20)
+ax.set_ylabel('KL divergence of NAngles', size=20)
+ax.set_title('KL divergence of NAngles')
+ax.legend()
+plt.show()
+figName = 'KL divergence of NAngles'
 fig.savefig(figName)
 
 # KL divergence of x vs time steps
@@ -320,7 +330,7 @@ fig.savefig(figName)
 
 # Histogram of neighbor distances
 fig, ax = plt.subplots(ncols=1, nrows=1)
-ax.plot(np.arange(binStart_NDist, binEnd_NDist, binSize_NDist),
+ax.plot(binEdgesNeighborDistances[:-1],
         count_NDist[:, currStepNum] / count_NDist[:, currStepNum].sum(),
         label='NDist distribution')
 ax.set_xlabel('edge-edge distance', size=20)
@@ -329,6 +339,25 @@ ax.set_title('histogram of neighbor distances')
 ax.legend()
 plt.show()
 figName = 'Histogram of neighbor distances'
+fig.savefig(figName)
+
+# Histogram of neighbor angles
+if runNDist_NAngles == 0:
+    dict_NDist_NAngles = fsr.count_kldiv_entropy_ndist_nangles(raftLocations[:, -2, :], raftRadius,
+                                                               binEdgesNeighborDistances,
+                                                               binEdgesNeighborAngles, target)
+    count_NAngles[:, currStepNum] = dict_NDist_NAngles['count_NAngles']
+    hexOrderParas[:, -2] = dict_NDist_NAngles['hexOrderParas']
+fig, ax = plt.subplots(ncols=1, nrows=1)
+ax.plot(binEdgesNeighborAngles[:-1],
+        count_NAngles[:, currStepNum] / count_NAngles[:, currStepNum].sum(),
+        label='NAngles distribution')
+ax.set_xlabel('edge-edge distance', size=20)
+ax.set_ylabel('probability', size=20)
+ax.set_title('histogram of neighbor angles')
+ax.legend()
+plt.show()
+figName = 'Histogram of neighbor angles'
 fig.savefig(figName)
 
 # Histogram of x
@@ -351,6 +380,24 @@ ax.set_title('histogram of marginal distribution of y')
 ax.legend()
 plt.show()
 figName = 'Histogram of marginal distribution of y'
+fig.savefig(figName)
+
+# hexatic order parameters plots
+hexaticOrderParameterAvgs = hexOrderParas.mean(axis=0)
+hexaticOrderParameterAvgNorms = np.sqrt(hexaticOrderParameterAvgs.real ** 2 + hexaticOrderParameterAvgs.imag ** 2)
+hexaticOrderParameterModulii = np.absolute(hexOrderParas)
+hexaticOrderParameterModuliiAvgs = hexaticOrderParameterModulii.mean(axis=0)
+hexaticOrderParameterModuliiStds = hexaticOrderParameterModulii.std(axis=0)
+fig, ax = plt.subplots(ncols=1, nrows=1)
+ax.plot(np.arange(numOfTimeSteps-1), hexaticOrderParameterAvgNorms[:-1], label='psi6 averages and norms')
+ax.errorbar(np.arange(numOfTimeSteps-1), hexaticOrderParameterModuliiAvgs[:-1],
+            yerr=hexaticOrderParameterModuliiStds[:-1], errorevery=10, label='psi6 norms and averages')
+ax.set_xlabel('y', size=20)
+ax.set_ylabel('order parameter', size=20)
+ax.set_title('hexatic order parameters over time')
+ax.legend()
+plt.show()
+figName = 'hexatic order parameters over time'
 fig.savefig(figName)
 
 # save last frame
