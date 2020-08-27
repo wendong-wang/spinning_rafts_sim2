@@ -55,7 +55,7 @@ if parallel_mode == 1:
 else:
     numOfRafts = 218
     spinSpeed = 25
-numOfTimeSteps = 15000  # 80000
+numOfTimeSteps = 200  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -231,7 +231,7 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
         if runNDist_NAngles == 1:
             diff_klDiv_NDist = dict_NDist_NAngles["klDiv_NDist"] - klDiv_NDist[currStepNum]
             diff_klDiv_NAngles = dict_NDist_NAngles["klDiv_NAngles"] - klDiv_NDist[currStepNum]
-        # accept the move if the dievergences decrease, otherwise accept/reject according to probability
+        # accept the move if the divergences decrease, otherwise accept/reject according to probability
         if runNDist == 0 and runNDist_NAngles == 0:
             if (diff_klDiv_X <= 0) and (diff_klDiv_Y <= 0):
                 continue
@@ -489,11 +489,11 @@ count_ODist, _ = np.histogram(np.asarray(orbitingDistances) / raftRadius, binEdg
 entropy_ODist = fsr.shannon_entropy(count_ODist)
 
 # distribution by X
-count_X, _ = np.histogram(raftLocationsOneFrame / raftRadius, binEdgesX)
+count_X, _ = np.histogram(raftLocationsOneFrame[:, 0] / raftRadius, binEdgesX)
 entropy_X = fsr.shannon_entropy(count_X)
 
 # distribution by y
-count_Y, _ = np.histogram(raftLocationsOneFrame / raftRadius, binEdgesY)
+count_Y, _ = np.histogram(raftLocationsOneFrame[:, 1] / raftRadius, binEdgesY)
 entropy_Y = fsr.shannon_entropy(count_Y)
 
 listOfVariablesToSave = ['numOfRafts', 'arenaSize', 'spinSpeed', 'arenaSizeInR',
