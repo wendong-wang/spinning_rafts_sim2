@@ -179,26 +179,26 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
     dict_X = fsr.count_kldiv_entropy_x(raftLocations[:, currStepNum, :], raftRadius, binEdgesX, target)
     dict_Y = fsr.count_kldiv_entropy_y(raftLocations[:, currStepNum, :], raftRadius, binEdgesY, target)
     # assignments
-    count_X[:, currStepNum], klDiv_X[currStepNum], entropy_X[currStepNum] = \
-        dict_X['count_X'], dict_X['klDiv_X'], dict_X['entropy_X']
-    count_Y[:, currStepNum], klDiv_Y[currStepNum], entropy_Y[currStepNum] = \
-        dict_Y['count_Y'], dict_Y['klDiv_Y'], dict_Y['entropy_Y']
+    count_X[:, currStepNum], klDiv_X[currStepNum] = dict_X['count_X'], dict_X['klDiv_X'],
+    count_Y[:, currStepNum], klDiv_Y[currStepNum] = dict_Y['count_Y'], dict_Y['klDiv_Y']
+    # entropy_X[currStepNum], entropy_Y[currStepNum] = dict_X['entropy_X'], dict_Y['entropy_Y']
 
     if runNDist == 1:
         dict_NDist = fsr.count_kldiv_entropy_ndist(raftLocations[:, currStepNum, :], raftRadius,
                                                    binEdgesNeighborDistances, target)
-        count_NDist[:, currStepNum], klDiv_NDist[currStepNum], entropy_NDist[currStepNum] = \
-            dict_NDist['count_NDist'], dict_NDist['klDiv_NDist'], dict_NDist['entropy_NDist']
+        count_NDist[:, currStepNum], klDiv_NDist[currStepNum] = dict_NDist['count_NDist'], dict_NDist['klDiv_NDist']
+        # entropy_NDist[currStepNum] = dict_NDist['entropy_NDist']
 
     if runNDist_NAngles == 1:
         dict_NDist_NAngles = fsr.count_kldiv_entropy_ndist_nangles(raftLocations[:, currStepNum, :], raftRadius,
                                                                    binEdgesNeighborDistances, binEdgesNeighborAngles,
                                                                    target)
-        count_NDist[:, currStepNum], klDiv_NDist[currStepNum], entropy_NDist[currStepNum] = \
-            dict_NDist_NAngles['count_NDist'], dict_NDist_NAngles['klDiv_NDist'], dict_NDist_NAngles['entropy_NDist']
-        count_NAngles[:, currStepNum], klDiv_NAngles[currStepNum], entropy_NAngles[currStepNum] = \
-            dict_NDist_NAngles['count_NAngles'], dict_NDist_NAngles['klDiv_NAngles'], \
-            dict_NDist_NAngles['entropy_NAngles']
+        count_NDist[:, currStepNum], klDiv_NDist[currStepNum] = \
+            dict_NDist_NAngles['count_NDist'], dict_NDist_NAngles['klDiv_NDist']
+        count_NAngles[:, currStepNum], klDiv_NAngles[currStepNum] = \
+            dict_NDist_NAngles['count_NAngles'], dict_NDist_NAngles['klDiv_NAngles']
+        # entropy_NDist[currStepNum], entropy_NAngles[currStepNum] = \
+        #     dict_NDist_NAngles['entropy_NDist'], dict_NDist_NAngles['entropy_NAngles']
         hexOrderParas[:, currStepNum] = dict_NDist_NAngles['hexOrderParas']
 
     newLocations = raftLocations[:, currStepNum, :].copy()
@@ -383,11 +383,13 @@ figName = 'Histogram of marginal distribution of y'
 fig.savefig(figName)
 
 # hexatic order parameters plots
+# some data treatment
 hexaticOrderParameterAvgs = hexOrderParas.mean(axis=0)
 hexaticOrderParameterAvgNorms = np.sqrt(hexaticOrderParameterAvgs.real ** 2 + hexaticOrderParameterAvgs.imag ** 2)
 hexaticOrderParameterModulii = np.absolute(hexOrderParas)
 hexaticOrderParameterModuliiAvgs = hexaticOrderParameterModulii.mean(axis=0)
 hexaticOrderParameterModuliiStds = hexaticOrderParameterModulii.std(axis=0)
+# plot
 fig, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(np.arange(numOfTimeSteps-1), hexaticOrderParameterAvgNorms[:-1], label='psi6 averages and norms')
 ax.errorbar(np.arange(numOfTimeSteps-1), hexaticOrderParameterModuliiAvgs[:-1],
