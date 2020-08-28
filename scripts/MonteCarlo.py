@@ -54,8 +54,8 @@ if parallel_mode == 1:
     spinSpeed = int(sys.argv[2])
 else:
     numOfRafts = 218
-    spinSpeed = 25
-numOfTimeSteps = 200  # 80000
+    spinSpeed = 60
+numOfTimeSteps = 5000  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -183,13 +183,13 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
     count_Y[:, currStepNum], klDiv_Y[currStepNum] = dict_Y['count_Y'], dict_Y['klDiv_Y']
     # entropy_X[currStepNum], entropy_Y[currStepNum] = dict_X['entropy_X'], dict_Y['entropy_Y']
 
-    if runNDist == 1:
-        dict_NDist = fsr.count_kldiv_entropy_ndist(raftLocations[:, currStepNum, :], raftRadius,
-                                                   binEdgesNeighborDistances, target)
-        count_NDist[:, currStepNum], klDiv_NDist[currStepNum] = dict_NDist['count_NDist'], dict_NDist['klDiv_NDist']
-        # entropy_NDist[currStepNum] = dict_NDist['entropy_NDist']
+    # if runNDist == 1:
+    #     dict_NDist = fsr.count_kldiv_entropy_ndist(raftLocations[:, currStepNum, :], raftRadius,
+    #                                                binEdgesNeighborDistances, target)
+    #     count_NDist[:, currStepNum], klDiv_NDist[currStepNum] = dict_NDist['count_NDist'], dict_NDist['klDiv_NDist']
+    #     entropy_NDist[currStepNum] = dict_NDist['entropy_NDist']
 
-    if runNDist_NAngles == 1:
+    if runNDist == 1 or runNDist_NAngles == 1:
         dict_NDist_NAngles = fsr.count_kldiv_entropy_ndist_nangles(raftLocations[:, currStepNum, :], raftRadius,
                                                                    binEdgesNeighborDistances, binEdgesNeighborAngles,
                                                                    target)
