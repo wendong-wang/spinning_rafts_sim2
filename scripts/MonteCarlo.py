@@ -55,7 +55,7 @@ if parallel_mode == 1:
 else:
     numOfRafts = 218
     spinSpeed = 25
-numOfTimeSteps = 2000  # 80000
+numOfTimeSteps = 200  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -77,7 +77,7 @@ binEdgesX = list(np.arange(0, arenaSize/R + binSize_XY, binSize_XY))
 binEdgesY = list(np.arange(0, arenaSize/R + binSize_XY, binSize_XY))
 
 # load target distributions
-tempShelf = shelve.open('target_' + str(numOfRafts) + "Rafts_" + str(spinSpeed) + 'rps')
+tempShelf = shelve.open('target_' + str(numOfRafts) + "Rafts_" + str(spinSpeed) + 'rps-exp-reprocessed')
 variableListOfTargetDistributions = list(tempShelf.keys())
 target = {}
 for key in tempShelf:
@@ -171,6 +171,7 @@ outputImageName = outputFileName + str(currStepNum).zfill(7) + '.jpg'
 cv.imwrite(outputImageName, currentFrameBGR)
 
 # try run optimization on x and y distribution first, once they are below a certain threshold, start optimizing NDist
+masterSwitch = 1  # 1: switch runNDist on after 100 step, 2: switch runNDist_NAngles on after 100 step
 runNDist = 0  # switch for running NDist or not
 runNDist_NAngles = 0
 beta = 1000  # inverse of effective temperature
@@ -181,7 +182,7 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
     # assignments
     count_X[:, currStepNum], klDiv_X[currStepNum] = dict_X['count_X'], dict_X['klDiv_X'],
     count_Y[:, currStepNum], klDiv_Y[currStepNum] = dict_Y['count_Y'], dict_Y['klDiv_Y']
-    # entropy_X[currStepNum], entropy_Y[currStepNum] = dict_X['entropy_X'], dict_Y['entropy_Y']
+    entropy_X[currStepNum], entropy_Y[currStepNum] = dict_X['entropy_X'], dict_Y['entropy_Y']
 
     # if runNDist == 1:
     #     dict_NDist = fsr.count_kldiv_entropy_ndist(raftLocations[:, currStepNum, :], raftRadius,
@@ -197,8 +198,8 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
             dict_NDist_NAngles['count_NDist'], dict_NDist_NAngles['klDiv_NDist']
         count_NAngles[:, currStepNum], klDiv_NAngles[currStepNum] = \
             dict_NDist_NAngles['count_NAngles'], dict_NDist_NAngles['klDiv_NAngles']
-        # entropy_NDist[currStepNum], entropy_NAngles[currStepNum] = \
-        #     dict_NDist_NAngles['entropy_NDist'], dict_NDist_NAngles['entropy_NAngles']
+        entropy_NDist[currStepNum], entropy_NAngles[currStepNum] = \
+            dict_NDist_NAngles['entropy_NDist'], dict_NDist_NAngles['entropy_NAngles']
         hexOrderParas[:, currStepNum] = dict_NDist_NAngles['hexOrderParas']
 
     newLocations = raftLocations[:, currStepNum, :].copy()
@@ -268,8 +269,11 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
     # if the KL divergences of the global distributions are good, then switch on runNDist
     if currStepNum > 100 and np.all(klDiv_X[currStepNum - 5: currStepNum] < switchThreshold) and \
             np.all(klDiv_Y[currStepNum - 5: currStepNum] < switchThreshold):
-        runNDist_NAngles = 1
-        # runNDist = 1
+        if masterSwitch == 1:
+            runNDist = 1
+        elif masterSwitch == 2:
+            runNDist_NAngles = 1
+        #
         incrementSize = 20  # unit: radius
     raftLocations[:, currStepNum + 1, :] = newLocations
 

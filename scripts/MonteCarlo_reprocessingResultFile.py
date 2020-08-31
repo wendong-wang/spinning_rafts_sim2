@@ -83,12 +83,8 @@ tempShelf.close()
 
 # make folder for the current dataset
 now = datetime.datetime.now()
-if parallel_mode == 1:
-    outputFolderName = now.strftime("%Y-%m-%d") + '_' + str(numOfRafts) + 'Rafts_' + 'totalSteps' + \
-                       str(numOfTimeSteps) + '_incrementSize' + str(incrementSize) + 'R_' + str(spinSpeed) + 'rps'
-else:
-    outputFolderName = now.strftime("%Y-%m-%d_%H-%M-%S") + '_' + str(numOfRafts) + 'Rafts_' + 'totalSteps' + \
-                       str(numOfTimeSteps) + '_incrementSize' + str(incrementSize) + 'R_' + str(spinSpeed) + 'rps'
+outputFolderName = now.strftime("%Y-%m-%d_%H-%M-%S") + '_' + str(numOfRafts) + 'Rafts_' + str(spinSpeed) + \
+                   'rps_exp-reprocessed'
 
 if not os.path.isdir(outputFolderName):
     os.mkdir(outputFolderName)
@@ -126,32 +122,31 @@ rejectionRates = np.zeros(numOfTimeSteps)
 # currStepNum = 0
 # raftLocationsOneFrame = raftLocations[:, currStepNum, :]  # directly simulated pattern, unit in micron
 
-readingFromExp = 1
-if readingFromExp == 1:
-    count_NDist = target['count_NDist']
-    count_X = target['count_X']
-    count_Y = target['count_Y']
-    binEdgesNeighborDistances = target['binEdgesNeighborDistances']  # in unit of R
-    binEdgesOrbitingDistances = binEdgesNeighborDistances  # in R
-    binEdgesX = target['binEdgesX']  # in R
-    binEdgesY = target['binEdgesY']  # in R
-    raftLocations = target['raftLocations']  # in pixel
-    radiusInPixel = target['radius']  # R in pixel
-    raftRadius = radiusInPixel  # replace the original R, which is in micron
-    arenaSizeInR = target['sizeOfArenaInRadius_pixels']  # arena size in R
-    arenaSizeInPixel = arenaSizeInR * radiusInPixel
-    arenaScaleFactor = arenaSizeInPixel / canvasSizeInPixel  # canvas size is 1000, arena size is about ~1720
+count_NDist = target['count_NDist']
+count_X = target['count_X']
+count_Y = target['count_Y']
+binEdgesNeighborDistances = target['binEdgesNeighborDistances']  # in unit of R
+binEdgesOrbitingDistances = binEdgesNeighborDistances  # in R
+binEdgesX = target['binEdgesX']  # in R
+binEdgesY = target['binEdgesY']  # in R
+raftLocations = target['raftLocations']  # in pixel
+radiusInPixel = target['radius']  # R in pixel
+raftRadius = radiusInPixel  # replace the original R, which is in micron
+numOfFrames = target['numOfFrames']
+arenaSizeInR = target['sizeOfArenaInRadius_pixels']  # arena size in R
+arenaSizeInPixel = arenaSizeInR * radiusInPixel
+arenaScaleFactor = arenaSizeInPixel / canvasSizeInPixel  # canvas size is 1000, arena size is about ~1720
 
-    # draw the experimental image, make sure that you are in a newly created folder
-    currentFrameBGR = fsr.draw_rafts_rh_coord(blankFrameBGR.copy(),
-                                              np.int32(raftLocations[:, -1, :] / arenaScaleFactor),
-                                              np.int64(raftRadii / scaleBar), numOfRafts)
-    currentFrameBGR = fsr.draw_raft_num_rh_coord(currentFrameBGR,
-                                                 np.int64(raftLocations[:, -1, :] / arenaScaleFactor),
-                                                 numOfRafts)
-    outputFileName = 'Exp_' + str(numOfRafts) + 'Rafts'
-    outputImageName = outputFileName + '.jpg'
-    cv.imwrite(outputImageName, currentFrameBGR)
+# draw the experimental image, make sure that you are in a newly created folder
+currentFrameBGR = fsr.draw_rafts_rh_coord(blankFrameBGR.copy(),
+                                          np.int32(raftLocations[:, -1, :] / arenaScaleFactor),
+                                          np.int64(raftRadii / scaleBar), numOfRafts)
+currentFrameBGR = fsr.draw_raft_num_rh_coord(currentFrameBGR,
+                                             np.int64(raftLocations[:, -1, :] / arenaScaleFactor),
+                                             numOfRafts)
+outputFileName = 'Exp_' + str(numOfRafts) + 'Rafts'
+outputImageName = outputFileName + '.jpg'
+cv.imwrite(outputImageName, currentFrameBGR)
 
 # use the raft location in one frame (last) to calculate all the distributions
 raftLocationsOneFrame = raftLocations[:, -1, :]  # get the last frame, unit in pixel
@@ -195,7 +190,7 @@ listOfVariablesToSave = ['numOfRafts', 'arenaSize', 'spinSpeed', 'arenaSizeInR',
                          'entropy_ODist', 'count_ODist',
                          'entropy_X', 'count_X',
                          'entropy_Y', 'count_Y']
-tempShelf = shelve.open('target_' + str(numOfRafts) + "Rafts_" + str(spinSpeed) + 'rps')
+tempShelf = shelve.open('target_' + str(numOfRafts) + "Rafts_" + str(spinSpeed) + 'rps_exp-reprocessed')
 for key in listOfVariablesToSave:
     try:
         tempShelf[key] = globals()[key]
@@ -265,4 +260,17 @@ ax.set_title('histogram of marginal distribution of y')
 ax.legend()
 plt.show()
 figName = 'Histogram of marginal distribution of y'
+fig.savefig(figName)
+
+fig, ax = plt.subplots(ncols=1, nrows=1)
+ax.scatter(np.arange(numOfFrames-1, numOfFrames), hexaticOrderParameterAvgNorm,
+           color='r', label='psi6 averages and norm')
+ax.errorbar(np.arange(numOfFrames-1, numOfFrames), hexaticOrderParameterModuliiAvgs,
+            yerr=hexaticOrderParameterModuliiStds, errorevery=10, marker='o', label='psi6 norms and averages')
+ax.set_xlabel('y', size=20)
+ax.set_ylabel('order parameter', size=20)
+ax.set_title('hexatic order parameters of the last frame')
+ax.legend()
+plt.show()
+figName = 'hexatic order parameters of the last frame'
 fig.savefig(figName)
