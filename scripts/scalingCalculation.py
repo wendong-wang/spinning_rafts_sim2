@@ -34,25 +34,38 @@ for index, R in enumerate(radiiOfRaft):
 
     capForceAngleAvg[index, :] = 2 * np.pi * surfaceTension * amplitude**2 * R**14 / (eeDists + 2*R)**15
 
-
-
 # at a specific distance value
-eeDistIndex = 11
+eeDistIndex = 11  # 10 micron eeDist
 fig, ax = plt.subplots(ncols=1, nrows=1)
-ax.semilogx(radiiOfRaft * 1e3, magDpForceOnAxisAngleAveraged[:, eeDistIndex],
-        label='angle-averaged d-d mag force at eeDist = {} m '.format((eeDistIndex-1)/1e6))
-ax.semilogx(radiiOfRaft * 1e3, hydroLiftForceAngleAveraged_1rps[:, eeDistIndex],
-        label='angle-averaged hydro lift force 1rps at eeDist = {} m '.format((eeDistIndex-1)/1e6))
-# ax.semilogx(radiiOfRaft * 1e3, hydroLiftForceAngleAveraged_10rps[:, eeDistIndex],
-#         label='angle-averaged hydro lift force 10rps at eeDist = {} m '.format((eeDistIndex-1)/1e6))
-# ax.semilogx(radiiOfRaft * 1e3, hydroLiftForceAngleAveraged_20rps[:, eeDistIndex],
-#         label='angle-averaged hydro lift force 20rps at eeDist = {} m '.format((eeDistIndex-1)/1e6))
+ax.loglog(radiiOfRaft * 1e3, -magDpForceOnAxisAngleAveraged[:, eeDistIndex], color='blue',
+        label='angle-averaged d-d mag force')
+ax.loglog(radiiOfRaft * 1e3, hydroLiftForceAngleAveraged_1rps[:, eeDistIndex], color='orange',
+        label='angle-averaged hydro lift force 1rps')
+ax.semilogx(radiiOfRaft * 1e3, hydroLiftForceAngleAveraged_10rps[:, eeDistIndex], color='orange',
+        label='angle-averaged hydro lift force 10rps')
+# ax.semilogx(radiiOfRaft * 1e3, hydroLiftForceAngleAveraged_20rps[:, eeDistIndex], color='orange',
+#         label='angle-averaged hydro lift force 20rps')
+ax.loglog(radiiOfRaft * 1e3, capForceAngleAvg[:, eeDistIndex], color='green',
+        label='angle-averaged capillary force')
 ax.set_xlabel('radius of raft (mm)', size=20)
 ax.set_ylabel('force (N)', size=20)
-ax.set_title('force scaling')
-ax.set_ylim([-0.000001, 0.0001])
+ax.set_title('force scaling at eeDist = {} m'.format((eeDistIndex-1)/1e6))
+# ax.set_ylim([-0.000001, 0.0001])
 ax.legend()
 plt.show()
 # figName = 'force scaling relations'
 # fig.savefig(figName)
+
+
+# capillary force at specific radius
+radiusIndex = 101  # 10 micron eeDist
+fig, ax = plt.subplots(ncols=1, nrows=1)
+ax.loglog(eeDists*1e3, capForceAngleAvg[radiusIndex, :], color='green',
+            label='angle-averaged capillary force, R = {} mm'.format((radiusIndex-1)/1e3))
+ax.set_xlabel('ee distance (mm)', size=20)
+ax.set_ylabel('force (N)', size=20)
+ax.set_title('capillary force scaling')
+# ax.set_ylim([-0.000001, 0.0001])
+ax.legend()
+plt.show()
 
