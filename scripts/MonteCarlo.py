@@ -55,7 +55,7 @@ if parallel_mode == 1:
 else:
     numOfRafts = 218
     spinSpeed = 25
-numOfTimeSteps = 200  # 80000
+numOfTimeSteps = 110  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -77,7 +77,7 @@ binEdgesX = list(np.arange(0, arenaSize/R + binSize_XY, binSize_XY))
 binEdgesY = list(np.arange(0, arenaSize/R + binSize_XY, binSize_XY))
 
 # load target distributions
-tempShelf = shelve.open('target_' + str(numOfRafts) + "Rafts_" + str(spinSpeed) + 'rps-exp-reprocessed')
+tempShelf = shelve.open('target_' + str(numOfRafts) + "Rafts_" + str(spinSpeed) + 'rps_exp-reprocessed')
 variableListOfTargetDistributions = list(tempShelf.keys())
 target = {}
 for key in tempShelf:
