@@ -122,9 +122,9 @@ rejectionRates = np.zeros(numOfTimeSteps)
 # currStepNum = 0
 # raftLocationsOneFrame = raftLocations[:, currStepNum, :]  # directly simulated pattern, unit in micron
 
-count_NDist = target['count_NDist']
-count_X = target['count_X']
-count_Y = target['count_Y']
+# count_NDist = target['count_NDist']
+# count_X = target['count_X']
+# count_Y = target['count_Y']
 binEdgesNeighborDistances = target['binEdgesNeighborDistances']  # in unit of R
 binEdgesOrbitingDistances = binEdgesNeighborDistances  # in R
 binEdgesX = target['binEdgesX']  # in R
@@ -137,6 +137,16 @@ arenaSizeInR = target['sizeOfArenaInRadius_pixels']  # arena size in R
 arenaSizeInPixel = arenaSizeInR * radiusInPixel
 arenaScaleFactor = arenaSizeInPixel / canvasSizeInPixel  # canvas size is 1000, arena size is about ~1720
 
+# redeclare count variables
+count_NDist_allFrames = np.zeros((len(binEdgesNeighborDistances)-1, numOfFrames))
+count_NAngles_allFrames = np.zeros((len(binEdgesNeighborAngles)-1, numOfFrames))
+# count_ODist_allFrames = np.zeros((len(binEdgesOrbitingDistances)-1, numOfFrames))
+hexaticOrderParameterAvg = np.zeros(numOfFrames, dtype=np.csingle)
+hexaticOrderParameterAvgNorm = np.zeros(numOfFrames)
+hexaticOrderParameterModulii = np.zeros((numOfRafts, numOfFrames))
+hexaticOrderParameterModuliiAvgs = np.zeros(numOfFrames)
+hexaticOrderParameterModuliiStds = np.zeros(numOfFrames)
+
 # draw the experimental image, make sure that you are in a newly created folder
 currentFrameBGR = fsr.draw_rafts_rh_coord(blankFrameBGR.copy(),
                                           np.int32(raftLocations[:, -1, :] / arenaScaleFactor),
@@ -148,21 +158,28 @@ outputFileName = 'Exp_' + str(numOfRafts) + 'Rafts'
 outputImageName = outputFileName + '.jpg'
 cv.imwrite(outputImageName, currentFrameBGR)
 
-# use the raft location in one frame (last) to calculate all the distributions
-raftLocationsOneFrame = raftLocations[:, -1, :]  # get the last frame, unit in pixel
+for currFrameNum in np.arange(numOfFrames):
+    # use the raft location in one frame (last) to calculate all the distributions
+    raftLocationsOneFrame = raftLocations[:, currFrameNum, :]  # get one frame, unit in pixel
+    # collect count_NDist, count_NAngles, count_ODist
+    # distribution by neighbor distances and neighbor angles
+    neighborDistances, neighborAngles, hexOrderParas = fsr.neighbor_distances_angles_array(raftLocationsOneFrame)
+    count_NDist_allFrames[:, currFrameNum], _ = np.histogram(neighborDistances / raftRadius, binEdgesNeighborDistances)
+    count_NAngles_allFrames[:, currFrameNum], _ = np.histogram(neighborAngles, binEdgesNeighborAngles)
+    hexaticOrderParameterAvg[currFrameNum] = hexOrderParas.mean()
+    hexaticOrderParameterAvgNorm[currFrameNum] = np.sqrt(hexaticOrderParameterAvg[currFrameNum].real ** 2 +
+                                                         hexaticOrderParameterAvg[currFrameNum].imag ** 2)
+    hexaticOrderParameterModulii[:, currFrameNum] = np.absolute(hexOrderParas)
+    hexaticOrderParameterModuliiAvgs[currFrameNum] = hexaticOrderParameterModulii[:, currFrameNum].mean()
+    hexaticOrderParameterModuliiStds[currFrameNum] = hexaticOrderParameterModulii[:, currFrameNum].std()
 
-# distribution by neighbor distances and neighbor angles
-neighborDistances, neighborAngles, hexOrderParas = fsr.neighbor_distances_angles_array(raftLocationsOneFrame)
-count_NDist, _ = np.histogram(neighborDistances / raftRadius, binEdgesNeighborDistances)
-count_NAngles, _ = np.histogram(neighborAngles, binEdgesNeighborAngles)
+
 # count_NAngles[0] -= numOfRafts
+count_NDist = count_NDist_allFrames.sum(axis=1)
+count_NAngles = count_NAngles_allFrames.sum(axis=1)
 entropy_NDist = fsr.shannon_entropy(count_NDist)
 entropy_NAngles = fsr.shannon_entropy(count_NAngles)
-hexaticOrderParameterAvg = hexOrderParas.mean()
-hexaticOrderParameterAvgNorm = np.sqrt(hexaticOrderParameterAvg.real ** 2 + hexaticOrderParameterAvg.imag ** 2)
-hexaticOrderParameterModulii = np.absolute(hexOrderParas)
-hexaticOrderParameterModuliiAvgs = hexaticOrderParameterModulii.mean()
-hexaticOrderParameterModuliiStds = hexaticOrderParameterModulii.std()
+
 
 # distribution by orbiting distances
 centerOfMass = raftLocationsOneFrame.mean(axis=0, keepdims=True)
@@ -171,11 +188,11 @@ count_ODist, _ = np.histogram(np.asarray(orbitingDistances) / raftRadius, binEdg
 entropy_ODist = fsr.shannon_entropy(count_ODist)
 
 # distribution by X
-count_X, _ = np.histogram(raftLocationsOneFrame[:, 0] / raftRadius, binEdgesX)
+count_X, _ = np.histogram(raftLocations[:, :, 0] / raftRadius, binEdgesX)
 entropy_X = fsr.shannon_entropy(count_X)
 
 # distribution by y
-count_Y, _ = np.histogram(raftLocationsOneFrame[:, 1] / raftRadius, binEdgesY)
+count_Y, _ = np.histogram(raftLocations[:, :, 1] / raftRadius, binEdgesY)
 entropy_Y = fsr.shannon_entropy(count_Y)
 
 listOfVariablesToSave = ['numOfRafts', 'arenaSize', 'spinSpeed', 'arenaSizeInR',
@@ -263,9 +280,9 @@ figName = 'Histogram of marginal distribution of y'
 fig.savefig(figName)
 
 fig, ax = plt.subplots(ncols=1, nrows=1)
-ax.scatter(np.arange(numOfFrames-1, numOfFrames), hexaticOrderParameterAvgNorm,
+ax.scatter(np.arange(numOfFrames), hexaticOrderParameterAvgNorm,
            color='r', label='psi6 averages and norm')
-ax.errorbar(np.arange(numOfFrames-1, numOfFrames), hexaticOrderParameterModuliiAvgs,
+ax.errorbar(np.arange(numOfFrames), hexaticOrderParameterModuliiAvgs,
             yerr=hexaticOrderParameterModuliiStds, errorevery=10, marker='o', label='psi6 norms and averages')
 ax.set_xlabel('y', size=20)
 ax.set_ylabel('order parameter', size=20)
