@@ -132,6 +132,7 @@ binEdgesY = target['binEdgesY']  # in R
 raftLocations = target['raftLocations']  # in pixel
 radiusInPixel = target['radius']  # R in pixel
 raftRadius = radiusInPixel  # replace the original R, which is in micron
+raftRadii = np.ones(numOfRafts) * raftRadius  # in Pixel
 numOfFrames = target['numOfFrames']
 arenaSizeInR = target['sizeOfArenaInRadius_pixels']  # arena size in R
 arenaSizeInPixel = arenaSizeInR * radiusInPixel
@@ -150,7 +151,7 @@ hexaticOrderParameterModuliiStds = np.zeros(numOfFrames)
 # draw the experimental image, make sure that you are in a newly created folder
 currentFrameBGR = fsr.draw_rafts_rh_coord(blankFrameBGR.copy(),
                                           np.int32(raftLocations[:, -1, :] / arenaScaleFactor),
-                                          np.int64(raftRadii / scaleBar), numOfRafts)
+                                          np.int64(raftRadii / arenaScaleFactor), numOfRafts)
 currentFrameBGR = fsr.draw_raft_num_rh_coord(currentFrameBGR,
                                              np.int64(raftLocations[:, -1, :] / arenaScaleFactor),
                                              numOfRafts)
