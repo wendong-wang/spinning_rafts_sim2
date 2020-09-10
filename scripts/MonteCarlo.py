@@ -54,7 +54,7 @@ if parallel_mode == 1:
     spinSpeed = int(sys.argv[2])
 else:
     numOfRafts = 218
-    spinSpeed = 25
+    spinSpeed = 30
 numOfTimeSteps = 110  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
@@ -275,6 +275,8 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
             runNDist_NAngles = 1
         #
         incrementSize = 20  # unit: radius
+
+    # if
     raftLocations[:, currStepNum + 1, :] = newLocations
 
 # %% plotting simulation results
