@@ -59,7 +59,17 @@ numOfTimeSteps = 1000  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
-incrementSize = 50  # unit: radius
+
+batchSize = 5  # how many rafts are moved together
+incrementSize = 50  # unit: radius, initial increment size
+finalIncrementSize = 5  # unit: radius
+incrementSwitchStep = 0  # step at which increment size is decreased
+rejectionThreshold = 0.9  # threshold below which we want to keep the rejection rate
+adaptiveIncrement = 0.7  # factor by which we decrease the increment step size each time
+numOfTestSteps = 100  # number of steps to run before testing the rejection rate
+incrementSizeArray = np.zeros(numOfTimeSteps)
+countIncrement2 = 0
+
 binSize_NDist = 0.5  # unit: radius
 binStart_NDist = 2  # unit: radius
 binEnd_NDist = 50  # unit: radius
@@ -96,11 +106,12 @@ centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 # make folder for the current dataset
 now = datetime.datetime.now()
 if parallel_mode == 1:
-    outputFolderName = now.strftime("%Y-%m-%d") + '_' + str(numOfRafts) + 'Rafts_' + 'totalSteps' + \
-                       str(numOfTimeSteps) + '_incrementSize' + str(incrementSize) + 'R_' + str(spinSpeed) + 'rps'
+    outputFolderName = now.strftime("%Y-%m-%d") + '_{}Rafts_totalSteps{}_{}rps_incre{}R_batchSize{}'.format(
+        numOfRafts, numOfTimeSteps, spinSpeed, finalIncrementSize, batchSize)
 else:
-    outputFolderName = now.strftime("%Y-%m-%d_%H-%M-%S") + '_' + str(numOfRafts) + 'Rafts_' + 'totalSteps' + \
-                       str(numOfTimeSteps) + '_incrementSize' + str(incrementSize) + 'R_' + str(spinSpeed) + 'rps'
+    outputFolderName = now.strftime("%Y-%m-%d_%H-%M-%S") + \
+                       '_{}Rafts_totalSteps{}_{}rps_incre{}R_batchSize{}'.format(
+                           numOfRafts, numOfTimeSteps, spinSpeed, finalIncrementSize, batchSize)
 
 if not os.path.isdir(outputFolderName):
     os.mkdir(outputFolderName)
@@ -176,8 +187,7 @@ masterSwitch = 1  # 1: switch runNDist on after 100 step, 2: switch runNDist_NAn
 runNDist = 0  # switch for running NDist or not
 runNDist_NAngles = 0
 beta = 1000  # inverse of effective temperature
-switchThreshold = (1/numOfRafts) * np.log2(1e9/numOfRafts) * 1.5  # penalty for rafts in the probability zero region
-batchSize = 5  # how many rafts are moved together
+switchThreshold = (1/numOfRafts) * np.log2(1e9/numOfRafts)  # penalty for rafts in the probability zero region
 for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
     dict_X = fsr.count_kldiv_entropy_x(raftLocations[:, currStepNum, :], raftRadius, binEdgesX, target)
     dict_Y = fsr.count_kldiv_entropy_y(raftLocations[:, currStepNum, :], raftRadius, binEdgesY, target)
@@ -218,7 +228,8 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
         # take care of the cases where moving the rafts outside the arena or overlapping with another raft.
         newXY = newLocations[raftIDs, :] + incrementInXY
         while newXY.max() > arenaSize - paddingAroundArena * R or newXY.min() < 0 + paddingAroundArena * R or \
-              scipy_distance.cdist(newLocations[restRaftIDS, :], newXY).min() < 2 * R:
+              scipy_distance.cdist(newLocations[restRaftIDS, :], newXY).min() < 2 * R or \
+                scipy_distance.cdist(newXY, newXY)[np.nonzero(scipy_distance.cdist(newXY, newXY))].min() < 2 * R:
             incrementInXY = np.random.uniform(low=-1, high=1, size=(batchSize, 2)) * incrementSize * R
             newXY = newLocations[raftIDs, :] + incrementInXY
         newLocations[raftIDs, :] = newXY
@@ -282,18 +293,35 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
         elif masterSwitch == 2:
             runNDist_NAngles = 1
         #
-        incrementSize = 20  # unit: radius
+        incrementSize = finalIncrementSize  # unit: radius
+        incrementSwitchStep = currStepNum
 
-    #
+    # After running for "NumOfTestSteps" if the minimum of rejection rate (in last 100 frames) is higher
+    # than the "rejectionThreshold" we decrease the increment size
+    # if currStepNum > incrementSwitchStep + numOfTestSteps and \
+    #         rejectionRates[incrementSwitchStep: currStepNum].mean() > rejectionThreshold * numOfRafts:
+    #     incrementSize = int(incrementSize * adaptiveIncrement)
+    #     if incrementSize < 5:
+    #         incrementSize = 5
+    #         countIncrement2 += 1
+    #     if countIncrement2 > 3:
+    #         incrementSize = 30
+    #         countIncrement2 = 0
+    #     incrementSwitchStep = currStepNum
+
+    # incrementSizeArray[currStepNum] = incrementSize
+
     raftLocations[:, currStepNum + 1, :] = newLocations
 
 # %% plotting simulation results
 # KL divergence of neighbor distances vs time steps
 fig, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(np.arange(numOfTimeSteps - 1), klDiv_NDist[:-1], label='kldiv_NDist vs steps')
+# ax.plot(np.arange(900, numOfTimeSteps - 2), np.diff(klDiv_NDist[:-1])[900:], label='kldiv_NDist vs steps')
 ax.set_xlabel('time steps', size=20)
 ax.set_ylabel('KL divergence of NDist', size=20)
 ax.set_title('KL divergence of NDist')
+ax.set_yscale("log")
 ax.legend()
 plt.show()
 figName = 'KL divergence of NDist'
@@ -315,6 +343,7 @@ ax.plot(np.arange(numOfTimeSteps - 1), klDiv_X[:-1], label='kldiv_X vs steps')
 ax.set_xlabel('time steps', size=20)
 ax.set_ylabel('KL divergence of X', size=20)
 ax.set_title('KL divergence of X')
+ax.set_yscale("log")
 ax.legend()
 plt.show()
 figName = 'KL divergence of X'
@@ -326,6 +355,7 @@ ax.plot(np.arange(numOfTimeSteps - 1), klDiv_Y[:-1], label='kldiv_Y vs steps')
 ax.set_xlabel('time steps', size=20)
 ax.set_ylabel('KL divergence of Y', size=20)
 ax.set_title('KL divergence of Y')
+ax.set_yscale("log")
 ax.legend()
 plt.show()
 figName = 'KL divergence of Y'
@@ -407,7 +437,8 @@ hexaticOrderParameterModuliiStds = hexaticOrderParameterModulii.std(axis=0)
 fig, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(np.arange(numOfTimeSteps-1), hexaticOrderParameterAvgNorms[:-1], label='psi6 averages and norms')
 ax.errorbar(np.arange(numOfTimeSteps-1), hexaticOrderParameterModuliiAvgs[:-1],
-            yerr=hexaticOrderParameterModuliiStds[:-1], errorevery=10, label='psi6 norms and averages')
+            yerr=hexaticOrderParameterModuliiStds[:-1], errorevery=int(numOfTimeSteps/200),
+            label='psi6 norms and averages')
 ax.set_xlabel('y', size=20)
 ax.set_ylabel('order parameter', size=20)
 ax.set_title('hexatic order parameters over time')
