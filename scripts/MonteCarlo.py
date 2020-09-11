@@ -55,7 +55,7 @@ if parallel_mode == 1:
 else:
     numOfRafts = 218
     spinSpeed = 30
-numOfTimeSteps = 110  # 80000
+numOfTimeSteps = 1000  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -70,14 +70,15 @@ binEnd_NAngles = 360  # unit: deg
 binEdgesNeighborAngles = list(np.arange(binStart_NAngles, binEnd_NAngles, binSize_NAngles)) + [360]
 binSize_ODist = 0.5  # unit: radius
 binStart_ODist = 2  # unit: radius
-binEnd_ODist = 50  # unit: radius
+binEnd_ODist = 80  # unit: radius
 binEdgesOrbitingDistances = list(np.arange(binStart_ODist, binEnd_ODist, binSize_ODist)) + [100]
 binSize_XY = 2  # unit: radius
 binEdgesX = list(np.arange(0, arenaSize/R + binSize_XY, binSize_XY))
 binEdgesY = list(np.arange(0, arenaSize/R + binSize_XY, binSize_XY))
 
 # load target distributions
-tempShelf = shelve.open('target_' + str(numOfRafts) + "Rafts_" + str(spinSpeed) + 'rps_exp-reprocessed')
+expDuration = 20
+tempShelf = shelve.open('target_{}s_{}Rafts_{}rps_reprocessed'.format(expDuration, numOfRafts, spinSpeed))
 variableListOfTargetDistributions = list(tempShelf.keys())
 target = {}
 for key in tempShelf:
@@ -176,6 +177,7 @@ runNDist = 0  # switch for running NDist or not
 runNDist_NAngles = 0
 beta = 1000  # inverse of effective temperature
 switchThreshold = (1/numOfRafts) * np.log2(1e9/numOfRafts) * 1.5  # penalty for rafts in the probability zero region
+batchSize = 5  # how many rafts are moved together
 for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
     dict_X = fsr.count_kldiv_entropy_x(raftLocations[:, currStepNum, :], raftRadius, binEdgesX, target)
     dict_Y = fsr.count_kldiv_entropy_y(raftLocations[:, currStepNum, :], raftRadius, binEdgesY, target)
@@ -203,17 +205,23 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
         hexOrderParas[:, currStepNum] = dict_NDist_NAngles['hexOrderParas']
 
     newLocations = raftLocations[:, currStepNum, :].copy()
-    for raftID in np.arange(numOfRafts):
+    permuatedRaftIDs = list(np.random.permutation(numOfRafts))
+    for batchNum in np.arange(int(numOfRafts/batchSize)):
         # raftID = 0
-        incrementInXY = np.random.uniform(low=-1, high=1, size=2) * incrementSize * R
+        # batchNum = 0
+        firstRaftInBatch = batchSize * batchNum
+        lastRaftInBatch = batchSize * (batchNum + 1) if (batchNum + 1) * batchSize <= numOfRafts else numOfRafts
+        raftIDs = permuatedRaftIDs[firstRaftInBatch:lastRaftInBatch]
+        restRaftIDS = list(set(permuatedRaftIDs) - set(raftIDs))
+
+        incrementInXY = np.random.uniform(low=-1, high=1, size=(batchSize, 2)) * incrementSize * R
         # take care of the cases where moving the rafts outside the arena or overlapping with another raft.
-        newXY = newLocations[raftID, :] + incrementInXY
+        newXY = newLocations[raftIDs, :] + incrementInXY
         while newXY.max() > arenaSize - paddingAroundArena * R or newXY.min() < 0 + paddingAroundArena * R or \
-              scipy_distance.cdist(newLocations[np.arange(numOfRafts) != raftID, :],
-                                   newXY.reshape(1, 2)).min() < 2 * R:
-            incrementInXY = np.random.uniform(low=-1, high=1, size=2) * incrementSize * R
-            newXY = newLocations[raftID, :] + incrementInXY
-        newLocations[raftID, :] = newXY
+              scipy_distance.cdist(newLocations[restRaftIDS, :], newXY).min() < 2 * R:
+            incrementInXY = np.random.uniform(low=-1, high=1, size=(batchSize, 2)) * incrementSize * R
+            newXY = newLocations[raftIDs, :] + incrementInXY
+        newLocations[raftIDs, :] = newXY
 
         dict_X = fsr.count_kldiv_entropy_x(newLocations, raftRadius, binEdgesX, target)
         dict_Y = fsr.count_kldiv_entropy_y(newLocations, raftRadius, binEdgesY, target)
@@ -237,8 +245,8 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
             if (diff_klDiv_X <= 0) and (diff_klDiv_Y <= 0):
                 continue
             else:
-                newLocations[raftID, :] = newLocations[raftID, :] - incrementInXY
-                rejectionRates[currStepNum] += 1
+                newLocations[raftIDs, :] = newLocations[raftIDs, :] - incrementInXY
+                rejectionRates[currStepNum] += batchSize
         elif runNDist == 1:
             if (diff_klDiv_X <= 0) and (diff_klDiv_Y <= 0) and (diff_klDiv_NDist <= 0):
                 continue
@@ -250,8 +258,8 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
                 if randomProb < np.exp(- diff_max * beta):
                     continue
                 else:
-                    newLocations[raftID, :] = newLocations[raftID, :] - incrementInXY
-                    rejectionRates[currStepNum] += 1
+                    newLocations[raftIDs, :] = newLocations[raftIDs, :] - incrementInXY
+                    rejectionRates[currStepNum] += batchSize
         elif runNDist_NAngles == 1:
             if (diff_klDiv_X <= 0) and (diff_klDiv_Y <= 0) and (diff_klDiv_NDist <= 0) and (diff_klDiv_NAngles <= 0):
                 continue
@@ -263,8 +271,8 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
                 if randomProb < np.exp(- diff_max * beta):
                     continue
                 else:
-                    newLocations[raftID, :] = newLocations[raftID, :] - incrementInXY
-                    rejectionRates[currStepNum] += 1
+                    newLocations[raftIDs, :] = newLocations[raftIDs, :] - incrementInXY
+                    rejectionRates[currStepNum] += batchSize
 
     # if the KL divergences of the global distributions are good, then switch on runNDist
     if currStepNum > 100 and np.all(klDiv_X[currStepNum - 5: currStepNum] < switchThreshold) and \
@@ -276,7 +284,7 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
         #
         incrementSize = 20  # unit: radius
 
-    # if
+    #
     raftLocations[:, currStepNum + 1, :] = newLocations
 
 # %% plotting simulation results
@@ -443,4 +451,3 @@ for key in listOfVariablesToSave:
 tempShelf.close()
 
 
-#%% old snippets, may or may not be useful
