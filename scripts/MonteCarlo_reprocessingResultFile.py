@@ -114,7 +114,7 @@ for ssId, spinSpeed in enumerate(spinSpeeds):
     count_NDist_allFrames = np.zeros((len(binEdgesNeighborDistances) - 1, numOfFrames))
     count_NAngles_allFrames = np.zeros((len(binEdgesNeighborAngles) - 1, numOfFrames))
     count_ODist_allFrames = np.zeros((len(binEdgesOrbitingDistances)-1, numOfFrames))
-    count_X_allFrames = np.zeros((len(binEdgesX)-1, numOfFrames))
+    count_X_allFrames = np.zeros((len(binEdgesX) - 1, numOfFrames))
     count_Y_allFrames = np.zeros((len(binEdgesY) - 1, numOfFrames))
 
     # declare order parameters
@@ -179,8 +179,8 @@ for ssId, spinSpeed in enumerate(spinSpeeds):
                              'count_NDist', 'count_NDist_allFrames', 'count_NDist_lastFrame', 'entropy_NDist',
                              'count_NAngles', 'count_NAngles_allFrames', 'count_NAngles_lastFrame', 'entropy_NAngles',
                              'count_ODist', 'count_ODist_allFrames', 'count_ODist_lastFrame', 'entropy_ODist',
-                             'count_X', 'count_X_lastFrame', 'entropy_X',
-                             'count_Y', 'count_Y_lastFrame', 'entropy_Y',
+                             'count_X', 'count_X_allFrames', 'count_X_lastFrame', 'entropy_X',
+                             'count_Y', 'count_Y_allFrames', 'count_Y_lastFrame', 'entropy_Y',
                              'hexaticOrderParameterAvg', 'hexaticOrderParameterAvgNorm', 'hexaticOrderParameterModulii',
                              'hexaticOrderParameterModuliiAvgs', 'hexaticOrderParameterModuliiAvgs']
 
@@ -286,93 +286,213 @@ with shelve.open('shelveAllSpinSpeeds') as tempShelf:
     tempShelf['dataList'] = listOfAllShelves
 
 #%% compare the divergence between 20 rps and 30 rps
-spinSpeed = listOfAllShelves[2]['spinSpeed']
+with shelve.open('shelveAllSpinSpeeds', flag='r') as tempShelf:
+    listOfAllShelves = tempShelf['dataList']
+
+spinSpeed = listOfAllShelves[5]['spinSpeed']
 count_NDist_20rps = listOfAllShelves[1]['count_NDist']
 count_NDist_30rps = listOfAllShelves[2]['count_NDist']
+count_NDist_60rps = listOfAllShelves[5]['count_NDist']
 klDiv_NDist_20_30 = fsr.kl_divergence(count_NDist_20rps, count_NDist_30rps)
+klDiv_NDist_30_20 = fsr.kl_divergence(count_NDist_30rps, count_NDist_20rps)
+klDiv_NDist_60_30 = fsr.kl_divergence(count_NDist_60rps, count_NDist_30rps)
+klDiv_NDist_30_60 = fsr.kl_divergence(count_NDist_30rps, count_NDist_60rps)
 
 count_NDist_lastFrame_20rps = listOfAllShelves[1]['count_NDist_lastFrame']
 count_NDist_lastFrame_30rps = listOfAllShelves[2]['count_NDist_lastFrame']
+count_NDist_lastFrame_60rps = listOfAllShelves[5]['count_NDist_lastFrame']
 klDiv_NDist_20_30_lastFrame = fsr.kl_divergence(count_NDist_lastFrame_20rps, count_NDist_lastFrame_30rps)
+klDiv_NDist_30_20_lastFrame = fsr.kl_divergence(count_NDist_lastFrame_30rps, count_NDist_lastFrame_20rps)
+klDiv_NDist_60_30_lastFrame = fsr.kl_divergence(count_NDist_lastFrame_60rps, count_NDist_lastFrame_30rps)
+klDiv_NDist_30_60_lastFrame = fsr.kl_divergence(count_NDist_lastFrame_30rps, count_NDist_lastFrame_60rps)
+
+count_NAngles_20rps = listOfAllShelves[1]['count_NAngles']
+count_NAngles_30rps = listOfAllShelves[2]['count_NAngles']
+count_NAngles_60rps = listOfAllShelves[5]['count_NAngles']
+klDiv_NAngles_20_30 = fsr.kl_divergence(count_NAngles_20rps, count_NAngles_30rps)
+klDiv_NAngles_30_20 = fsr.kl_divergence(count_NAngles_30rps, count_NAngles_20rps)
+klDiv_NAngles_60_30 = fsr.kl_divergence(count_NAngles_60rps, count_NAngles_30rps)
+klDiv_NAngles_30_60 = fsr.kl_divergence(count_NAngles_30rps, count_NAngles_60rps)
+
+count_NAngles_lastFrame_20rps = listOfAllShelves[1]['count_NAngles_lastFrame']
+count_NAngles_lastFrame_30rps = listOfAllShelves[2]['count_NAngles_lastFrame']
+count_NAngles_lastFrame_60rps = listOfAllShelves[5]['count_NAngles_lastFrame']
+klDiv_NAngles_20_30_lastFrame = fsr.kl_divergence(count_NAngles_lastFrame_20rps, count_NAngles_lastFrame_30rps)
+klDiv_NAngles_30_20_lastFrame = fsr.kl_divergence(count_NAngles_lastFrame_30rps, count_NAngles_lastFrame_20rps)
+klDiv_NAngles_60_30_lastFrame = fsr.kl_divergence(count_NAngles_lastFrame_60rps, count_NAngles_lastFrame_30rps)
+klDiv_NAngles_30_60_lastFrame = fsr.kl_divergence(count_NAngles_lastFrame_30rps, count_NAngles_lastFrame_60rps)
+
+count_ODist_20rps = listOfAllShelves[1]['count_ODist']
+count_ODist_30rps = listOfAllShelves[2]['count_ODist']
+count_ODist_60rps = listOfAllShelves[5]['count_ODist']
+klDiv_ODist_20_30 = fsr.kl_divergence(count_ODist_20rps, count_ODist_30rps)
+klDiv_ODist_30_20 = fsr.kl_divergence(count_ODist_30rps, count_ODist_20rps)
+klDiv_ODist_60_30 = fsr.kl_divergence(count_ODist_60rps, count_ODist_30rps)
+klDiv_ODist_30_60 = fsr.kl_divergence(count_ODist_30rps, count_ODist_60rps)
+
+count_ODist_lastFrame_20rps = listOfAllShelves[1]['count_ODist_lastFrame']
+count_ODist_lastFrame_30rps = listOfAllShelves[2]['count_ODist_lastFrame']
+count_ODist_lastFrame_60rps = listOfAllShelves[5]['count_ODist_lastFrame']
+klDiv_ODist_20_30_lastFrame = fsr.kl_divergence(count_ODist_lastFrame_20rps, count_ODist_lastFrame_30rps)
+klDiv_ODist_30_20_lastFrame = fsr.kl_divergence(count_ODist_lastFrame_30rps, count_ODist_lastFrame_20rps)
+klDiv_ODist_60_30_lastFrame = fsr.kl_divergence(count_ODist_lastFrame_60rps, count_ODist_lastFrame_30rps)
+klDiv_ODist_30_60_lastFrame = fsr.kl_divergence(count_ODist_lastFrame_30rps, count_ODist_lastFrame_60rps)
 
 count_X_20rps = listOfAllShelves[1]['count_X']
 count_X_30rps = listOfAllShelves[2]['count_X']
+count_X_60rps = listOfAllShelves[5]['count_X']
 klDiv_X_20_30 = fsr.kl_divergence(count_X_20rps, count_X_30rps)
+klDiv_X_30_20 = fsr.kl_divergence(count_X_30rps, count_X_20rps)
+klDiv_X_60_30 = fsr.kl_divergence(count_X_60rps, count_X_30rps)
+klDiv_X_30_60 = fsr.kl_divergence(count_X_30rps, count_X_60rps)
 
 count_X_lastFrame_20rps = listOfAllShelves[1]['count_X_lastFrame']
 count_X_lastFrame_30rps = listOfAllShelves[2]['count_X_lastFrame']
+count_X_lastFrame_60rps = listOfAllShelves[5]['count_X_lastFrame']
 klDiv_X_20_30_lastFrame = fsr.kl_divergence(count_X_lastFrame_20rps, count_X_lastFrame_30rps)
+klDiv_X_30_20_lastFrame = fsr.kl_divergence(count_X_lastFrame_30rps, count_X_lastFrame_20rps)
+klDiv_X_60_30_lastFrame = fsr.kl_divergence(count_X_lastFrame_60rps, count_X_lastFrame_30rps)
+klDiv_X_30_60_lastFrame = fsr.kl_divergence(count_X_lastFrame_30rps, count_X_lastFrame_60rps)
 
 count_Y_20rps = listOfAllShelves[1]['count_Y']
 count_Y_30rps = listOfAllShelves[2]['count_Y']
+count_Y_60rps = listOfAllShelves[5]['count_Y']
 klDiv_Y_20_30 = fsr.kl_divergence(count_Y_20rps, count_Y_30rps)
+klDiv_Y_30_20 = fsr.kl_divergence(count_Y_30rps, count_Y_20rps)
+klDiv_Y_60_30 = fsr.kl_divergence(count_Y_60rps, count_Y_30rps)
+klDiv_Y_30_60 = fsr.kl_divergence(count_Y_30rps, count_Y_60rps)
 
 count_Y_lastFrame_20rps = listOfAllShelves[1]['count_Y_lastFrame']
 count_Y_lastFrame_30rps = listOfAllShelves[2]['count_Y_lastFrame']
+count_Y_lastFrame_60rps = listOfAllShelves[5]['count_Y_lastFrame']
 klDiv_Y_20_30_lastFrame = fsr.kl_divergence(count_Y_lastFrame_20rps, count_Y_lastFrame_30rps)
+klDiv_Y_30_20_lastFrame = fsr.kl_divergence(count_Y_lastFrame_30rps, count_Y_lastFrame_20rps)
+klDiv_Y_60_30_lastFrame = fsr.kl_divergence(count_Y_lastFrame_60rps, count_Y_lastFrame_30rps)
+klDiv_Y_30_60_lastFrame = fsr.kl_divergence(count_Y_lastFrame_30rps, count_Y_lastFrame_60rps)
 
 #%% see how kl divergences with time average:
-listID = 0
+listID = 5
 spinSpeed = listOfAllShelves[listID]['spinSpeed']   # spinSpeed
 count_NDist_singleRPS = listOfAllShelves[listID]['count_NDist']
 count_NDist_lastFrame_singleRPS = listOfAllShelves[listID]['count_NDist_lastFrame']
 count_NDist_allFrames_singleRPS = listOfAllShelves[listID]['count_NDist_allFrames']
 
+count_NAngles_singleRPS = listOfAllShelves[listID]['count_NAngles']
+count_NAngles_lastFrame_singleRPS = listOfAllShelves[listID]['count_NAngles_lastFrame']
+count_NAngles_allFrames_singleRPS = listOfAllShelves[listID]['count_NAngles_allFrames']
+
+count_ODist_singleRPS = listOfAllShelves[listID]['count_ODist']
+count_ODist_lastFrame_singleRPS = listOfAllShelves[listID]['count_ODist_lastFrame']
+count_ODist_allFrames_singleRPS = listOfAllShelves[listID]['count_ODist_allFrames']
+
 count_X_singleRPS = listOfAllShelves[listID]['count_X']
 count_X_lastFrame_singleRPS = listOfAllShelves[listID]['count_X_lastFrame']
 count_X_allFrames_singleRPS = listOfAllShelves[listID]['count_X_allFrames']
 
-count_Y_singleRPS = listOfAllShelves[listID]['count_NDist']
+count_Y_singleRPS = listOfAllShelves[listID]['count_Y']
 count_Y_lastFrame_singleRPS = listOfAllShelves[listID]['count_Y_lastFrame']
 count_Y_allFrames_singleRPS = listOfAllShelves[listID]['count_Y_allFrames']
-# numOfFrames = listOfAllShelves[1]['numOfFrames']
-klDiv_NDist_avg_allFrames = np.zeros(numOfFrames)
-klDiv_NDist_lastFrame_allFrames = np.zeros(numOfFrames)
-klDiv_X_avg_allFrames = np.zeros(numOfFrames)
-klDiv_X_lastFrame_allFrames = np.zeros(numOfFrames)
-klDiv_Y_avg_allFrames = np.zeros(numOfFrames)
-klDiv_Y_lastFrame_allFrames = np.zeros(numOfFrames)
+
+numOfFrames = listOfAllShelves[1]['numOfFrames']
+klDiv_NDist_avg_eachFrame = np.zeros(numOfFrames)
+klDiv_NDist_lastFrame_eachFrame = np.zeros(numOfFrames)
+klDiv_NAngles_avg_eachFrame = np.zeros(numOfFrames)
+klDiv_NAngles_lastFrame_eachFrame = np.zeros(numOfFrames)
+klDiv_ODist_avg_eachFrame = np.zeros(numOfFrames)
+klDiv_ODist_lastFrame_eachFrame = np.zeros(numOfFrames)
+klDiv_X_avg_eachFrame = np.zeros(numOfFrames)
+klDiv_X_lastFrame_eachFrame = np.zeros(numOfFrames)
+klDiv_Y_avg_eachFrame = np.zeros(numOfFrames)
+klDiv_Y_lastFrame_eachFrame = np.zeros(numOfFrames)
+
 for currFrameNum in np.arange(numOfFrames):
-    klDiv_NDist_avg_allFrames[currFrameNum] = fsr.kl_divergence(count_NDist_singleRPS,
-                                                                count_NDist_allFrames_singleRPS[:, currFrameNum])
-    klDiv_NDist_lastFrame_allFrames[currFrameNum] = fsr.kl_divergence(count_NDist_lastFrame_singleRPS,
-                                                                      count_NDist_allFrames_singleRPS[:, currFrameNum])
-    klDiv_X_avg_allFrames = fsr.kl_divergence(count_X_singleRPS, count_X_allFrames_singleRPS[:, currFrameNum])
-    klDiv_X_lastFrame_allFrames = fsr.kl_divergence(count_X_lastFrame_singleRPS,
-                                                    count_X_allFrames_singleRPS[:, currFrameNum])
-    klDiv_Y_avg_allFrames = fsr.kl_divergence(count_Y_singleRPS, count_Y_allFrames_singleRPS[:, currFrameNum])
-    klDiv_Y_lastFrame_allFrames = fsr.kl_divergence(count_Y_lastFrame_singleRPS,
-                                                    count_Y_allFrames_singleRPS[:, currFrameNum])
+    klDiv_NDist_avg_eachFrame[currFrameNum] = \
+        fsr.kl_divergence(count_NDist_allFrames_singleRPS[:, currFrameNum], count_NDist_singleRPS)
+    klDiv_NDist_lastFrame_eachFrame[currFrameNum] = \
+        fsr.kl_divergence(count_NDist_allFrames_singleRPS[:, currFrameNum], count_NDist_lastFrame_singleRPS)
+
+    klDiv_NAngles_avg_eachFrame[currFrameNum] = \
+        fsr.kl_divergence(count_NAngles_allFrames_singleRPS[:, currFrameNum], count_NAngles_singleRPS)
+    klDiv_NAngles_lastFrame_eachFrame[currFrameNum] = \
+        fsr.kl_divergence(count_NAngles_allFrames_singleRPS[:, currFrameNum], count_NAngles_lastFrame_singleRPS)
+
+    klDiv_ODist_avg_eachFrame[currFrameNum] = \
+        fsr.kl_divergence(count_ODist_allFrames_singleRPS[:, currFrameNum], count_ODist_singleRPS)
+    klDiv_ODist_lastFrame_eachFrame[currFrameNum] = \
+        fsr.kl_divergence(count_ODist_allFrames_singleRPS[:, currFrameNum], count_ODist_lastFrame_singleRPS)
+
+    klDiv_X_avg_eachFrame[currFrameNum] = \
+        fsr.kl_divergence(count_X_allFrames_singleRPS[:, currFrameNum], count_X_singleRPS)
+    klDiv_X_lastFrame_eachFrame[currFrameNum] = \
+        fsr.kl_divergence(count_X_allFrames_singleRPS[:, currFrameNum], count_X_lastFrame_singleRPS)
+
+    klDiv_Y_avg_eachFrame[currFrameNum] = \
+        fsr.kl_divergence(count_Y_allFrames_singleRPS[:, currFrameNum], count_Y_singleRPS)
+    klDiv_Y_lastFrame_eachFrame[currFrameNum] = \
+        fsr.kl_divergence(count_Y_allFrames_singleRPS[:, currFrameNum], count_Y_lastFrame_singleRPS)
+
 # plotting
 fig, ax = plt.subplots(ncols=1, nrows=1)
-ax.plot(np.arange(numOfFrames), klDiv_NDist_avg_allFrames, color='r', label='klDiv between avg and all frames ')
-ax.plot(np.arange(numOfFrames), klDiv_NDist_lastFrame_allFrames, color='b', label='klDiv between last and all frames ')
+ax.plot(np.arange(numOfFrames), klDiv_NDist_avg_eachFrame, color='r',
+        label='count_eachFrame and count_allFrames')
+ax.plot(np.arange(numOfFrames), klDiv_NDist_lastFrame_eachFrame, color='b',
+        label='count_eachFrame and count_lastFrame')
 ax.set_xlabel('frame number', size=20)
 ax.set_ylabel('kl divergence', size=20)
 ax.set_title('kl divergence of NDist at {} rps'.format(spinSpeed))
 ax.legend()
 plt.show()
-figName = 'kl divergence of NDist at {} rps.jpg'.format(spinSpeed)
+figName = 'kl divergence_{}rps_NDist.jpg'.format(spinSpeed)
 fig.savefig(figName)
 
 fig, ax = plt.subplots(ncols=1, nrows=1)
-ax.plot(np.arange(numOfFrames), klDiv_X_avg_allFrames, color='r', label='klDiv between avg and all frames ')
-ax.plot(np.arange(numOfFrames), klDiv_X_lastFrame_allFrames, color='b', label='klDiv between last and all frames ')
+ax.plot(np.arange(numOfFrames), klDiv_NAngles_avg_eachFrame, color='r',
+        label='count_eachFrame and count_allFrames')
+ax.plot(np.arange(numOfFrames), klDiv_NAngles_lastFrame_eachFrame, color='b',
+        label='count_eachFrame and count_lastFrame')
+ax.set_xlabel('frame number', size=20)
+ax.set_ylabel('kl divergence', size=20)
+ax.set_title('kl divergence of NAngles at {} rps'.format(spinSpeed))
+ax.legend()
+plt.show()
+figName = 'kl divergence_{}rps_NAngles.jpg'.format(spinSpeed)
+fig.savefig(figName)
+
+fig, ax = plt.subplots(ncols=1, nrows=1)
+ax.plot(np.arange(numOfFrames), klDiv_ODist_avg_eachFrame, color='r',
+        label='count_eachFrame and count_allFrames')
+ax.plot(np.arange(numOfFrames), klDiv_ODist_lastFrame_eachFrame, color='b',
+        label='count_eachFrame and count_lastFrame')
+ax.set_xlabel('frame number', size=20)
+ax.set_ylabel('kl divergence', size=20)
+ax.set_title('kl divergence of ODist at {} rps'.format(spinSpeed))
+ax.legend()
+plt.show()
+figName = 'kl divergence_{}rps_ODist.jpg'.format(spinSpeed)
+fig.savefig(figName)
+
+fig, ax = plt.subplots(ncols=1, nrows=1)
+ax.plot(np.arange(numOfFrames), klDiv_X_avg_eachFrame, color='r',
+        label='count_eachFrame and count_allFrames')
+ax.plot(np.arange(numOfFrames), klDiv_X_lastFrame_eachFrame, color='b',
+        label='count_eachFrame and count_lastFrame')
 ax.set_xlabel('frame number', size=20)
 ax.set_ylabel('kl divergence', size=20)
 ax.set_title('kl divergence of X at {} rps'.format(spinSpeed))
 ax.legend()
 plt.show()
-figName = 'kl divergence of X at {} rps.jpg'.format(spinSpeed)
+figName = 'kl divergence_{}rps_X.jpg'.format(spinSpeed)
 fig.savefig(figName)
 
 fig, ax = plt.subplots(ncols=1, nrows=1)
-ax.plot(np.arange(numOfFrames), klDiv_Y_avg_allFrames, color='r', label='klDiv between avg and all frames ')
-ax.plot(np.arange(numOfFrames), klDiv_Y_lastFrame_allFrames, color='b', label='klDiv between last and all frames ')
+ax.plot(np.arange(numOfFrames), klDiv_Y_avg_eachFrame, color='r',
+        label='count_eachFrame and count_allFrames')
+ax.plot(np.arange(numOfFrames), klDiv_Y_lastFrame_eachFrame, color='b',
+        label='count_eachFrame and count_lastFrame')
 ax.set_xlabel('frame number', size=20)
 ax.set_ylabel('kl divergence', size=20)
 ax.set_title('kl divergence of Y at {} rps'.format(spinSpeed))
 ax.legend()
 plt.show()
-figName = 'kl divergence of Y at {} rps.jpg'.format(spinSpeed)
+figName = 'kl divergence_{}rps_Y.jpg'.format(spinSpeed)
 fig.savefig(figName)
