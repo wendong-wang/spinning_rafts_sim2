@@ -434,9 +434,11 @@ for currFrameNum in np.arange(numOfFrames):
 # plotting
 fig, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(np.arange(numOfFrames), klDiv_NDist_avg_eachFrame, color='r',
-        label='count_eachFrame and count_allFrames')
+        label='eachFrame against allFrames: {0:.3f} +/- {1:.3f}'.format(klDiv_NDist_avg_eachFrame.mean(),
+                                                                        klDiv_NDist_avg_eachFrame.std()))
 ax.plot(np.arange(numOfFrames), klDiv_NDist_lastFrame_eachFrame, color='b',
-        label='count_eachFrame and count_lastFrame')
+        label='eachFrame against lastFrame: {0:.3f} +/- {1:.3f}'.format(klDiv_NDist_lastFrame_eachFrame.mean(),
+                                                                        klDiv_NDist_lastFrame_eachFrame.std()))
 ax.set_xlabel('frame number', size=20)
 ax.set_ylabel('kl divergence', size=20)
 ax.set_title('kl divergence of NDist at {} rps'.format(spinSpeed))
@@ -447,9 +449,11 @@ fig.savefig(figName)
 
 fig, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(np.arange(numOfFrames), klDiv_NAngles_avg_eachFrame, color='r',
-        label='count_eachFrame and count_allFrames')
+        label='eachFrame against allFrames: {0:.3f} +/- {1:.3f}'.format(klDiv_NAngles_avg_eachFrame.mean(),
+                                                                        klDiv_NAngles_avg_eachFrame.std()))
 ax.plot(np.arange(numOfFrames), klDiv_NAngles_lastFrame_eachFrame, color='b',
-        label='count_eachFrame and count_lastFrame')
+        label='eachFrame against lastFrame: {0:.3f} +/- {1:.3f}'.format(klDiv_NAngles_lastFrame_eachFrame.mean(),
+                                                                        klDiv_NAngles_lastFrame_eachFrame.std()))
 ax.set_xlabel('frame number', size=20)
 ax.set_ylabel('kl divergence', size=20)
 ax.set_title('kl divergence of NAngles at {} rps'.format(spinSpeed))
@@ -460,9 +464,11 @@ fig.savefig(figName)
 
 fig, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(np.arange(numOfFrames), klDiv_ODist_avg_eachFrame, color='r',
-        label='count_eachFrame and count_allFrames')
+        label='eachFrame against allFrames: {0:.3f} +/- {1:.3f}'.format(klDiv_ODist_avg_eachFrame.mean(),
+                                                                        klDiv_ODist_avg_eachFrame.std()))
 ax.plot(np.arange(numOfFrames), klDiv_ODist_lastFrame_eachFrame, color='b',
-        label='count_eachFrame and count_lastFrame')
+        label='eachFrame against lastFrame: {0:.3f} +/- {1:.3f}'.format(klDiv_ODist_lastFrame_eachFrame.mean(),
+                                                                        klDiv_ODist_lastFrame_eachFrame.std()))
 ax.set_xlabel('frame number', size=20)
 ax.set_ylabel('kl divergence', size=20)
 ax.set_title('kl divergence of ODist at {} rps'.format(spinSpeed))
@@ -473,9 +479,11 @@ fig.savefig(figName)
 
 fig, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(np.arange(numOfFrames), klDiv_X_avg_eachFrame, color='r',
-        label='count_eachFrame and count_allFrames')
+        label='eachFrame against allFrames: {0:.3f} +/- {1:.3f}'.format(klDiv_X_avg_eachFrame.mean(),
+                                                                        klDiv_X_avg_eachFrame.std()))
 ax.plot(np.arange(numOfFrames), klDiv_X_lastFrame_eachFrame, color='b',
-        label='count_eachFrame and count_lastFrame')
+        label='eachFrame against lastFrame: {0:.3f} +/- {1:.3f}'.format(klDiv_X_lastFrame_eachFrame.mean(),
+                                                                        klDiv_X_lastFrame_eachFrame.std()))
 ax.set_xlabel('frame number', size=20)
 ax.set_ylabel('kl divergence', size=20)
 ax.set_title('kl divergence of X at {} rps'.format(spinSpeed))
@@ -486,9 +494,11 @@ fig.savefig(figName)
 
 fig, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(np.arange(numOfFrames), klDiv_Y_avg_eachFrame, color='r',
-        label='count_eachFrame and count_allFrames')
+        label='eachFrame against allFrames: {0:.3f} +/- {1:.3f}'.format(klDiv_Y_avg_eachFrame.mean(),
+                                                                        klDiv_Y_avg_eachFrame.std()))
 ax.plot(np.arange(numOfFrames), klDiv_Y_lastFrame_eachFrame, color='b',
-        label='count_eachFrame and count_lastFrame')
+        label='eachFrame against lastFrame: {0:.3f} +/- {1:.3f}'.format(klDiv_Y_lastFrame_eachFrame.mean(),
+                                                                        klDiv_Y_lastFrame_eachFrame.std()))
 ax.set_xlabel('frame number', size=20)
 ax.set_ylabel('kl divergence', size=20)
 ax.set_title('kl divergence of Y at {} rps'.format(spinSpeed))

@@ -55,12 +55,12 @@ if parallel_mode == 1:
 else:
     numOfRafts = 218
     spinSpeed = 30
-numOfTimeSteps = 1000  # 80000
+numOfTimeSteps = 50000  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
 
-batchSize = 5  # how many rafts are moved together
+batchSize = 2  # how many rafts are moved together
 incrementSize = 50  # unit: radius, initial increment size
 finalIncrementSize = 5  # unit: radius
 incrementSwitchStep = 0  # step at which increment size is decreased
@@ -376,11 +376,14 @@ fig.savefig(figName)
 fig, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(binEdgesNeighborDistances[:-1],
         count_NDist[:, currStepNum] / count_NDist[:, currStepNum].sum(),
-        label='NDist distribution')
+        label='NDist distribution of the last step')
+ax.plot(binEdgesNeighborDistances[:-1], target['count_NDist']/target['count_NDist'].sum(),
+        label='target NDist distribution')
 ax.set_xlabel('edge-edge distance', size=20)
 ax.set_ylabel('probability', size=20)
 ax.set_title('histogram of neighbor distances')
 ax.legend()
+ax.set_yscale("log")
 plt.show()
 figName = 'Histogram of neighbor distances'
 fig.savefig(figName)
@@ -407,10 +410,12 @@ fig.savefig(figName)
 # Histogram of x
 fig, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(binEdgesX[:-1], count_X[:, currStepNum] / count_X[:, currStepNum].sum(), label='marginal distribution of x')
+ax.plot(binEdgesX[:-1], target['count_X'] / target['count_X'].sum(), label='target marginal distribution of x')
 ax.set_xlabel('x', size=20)
 ax.set_ylabel('probability', size=20)
 ax.set_title('histogram of marginal distribution of X')
 ax.legend()
+ax.set_yscale('log')
 plt.show()
 figName = 'Histogram of marginal distribution of X'
 fig.savefig(figName)
@@ -418,10 +423,12 @@ fig.savefig(figName)
 # Histogram of y
 fig, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(binEdgesY[:-1], count_Y[:, currStepNum] / count_Y[:, currStepNum].sum(), label='marginal distribution of y')
+ax.plot(binEdgesX[:-1], target['count_Y'] / target['count_Y'].sum(), label='target marginal distribution of y')
 ax.set_xlabel('y', size=20)
 ax.set_ylabel('probability', size=20)
 ax.set_title('histogram of marginal distribution of y')
 ax.legend()
+ax.set_yscale('log')
 plt.show()
 figName = 'Histogram of marginal distribution of y'
 fig.savefig(figName)
@@ -461,6 +468,22 @@ outputFileName = 'MonteCarlo_' + str(numOfRafts) + 'Rafts_' + 'startPosMeth' + s
 outputImageName = outputFileName + str(currStepNum).zfill(7) + '.jpg'
 cv.imwrite(outputImageName, currentFrameBGR)
 
+# save the frame with maximum hex order parameter:
+stepNumOfMaxHex = hexaticOrderParameterModuliiAvgs.argmax()
+currentFrameBGR = fsr.draw_rafts_rh_coord(blankFrameBGR.copy(),
+                                          np.int32(raftLocations[:, stepNumOfMaxHex, :] / scaleBar),
+                                          np.int64(raftRadii / scaleBar), numOfRafts)
+currentFrameBGR = fsr.draw_raft_num_rh_coord(currentFrameBGR,
+                                             np.int64(raftLocations[:, stepNumOfMaxHex, :] / scaleBar),
+                                             numOfRafts)
+
+outputFileName = 'MonteCarlo_' + str(numOfRafts) + 'Rafts_' + 'startPosMeth' + str(initialPositionMethod) \
+                 + '_numOfSteps' + str(numOfTimeSteps) + '_currStep'
+
+outputImageName = outputFileName + str(stepNumOfMaxHex).zfill(7) + '.jpg'
+cv.imwrite(outputImageName, currentFrameBGR)
+
+# save files
 listOfVariablesToSave = ['numOfRafts', 'arenaSize', 'spinSpeed',
                          'raftLocations',
                          'binEdgesNeighborDistances', 'binEdgesOrbitingDistances',
