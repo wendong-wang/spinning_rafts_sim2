@@ -53,11 +53,12 @@ if parallel_mode == 1:
 else:
     numOfRafts = 218
     spinSpeed = 30
-numOfTimeSteps = 200  # 80000
+numOfTimeSteps = 2000  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
 
+ifLastFrameCount = 1  # 0 - using counts from all frames, 1- using counts from the last frame only
 batchSize = 2  # how many rafts are moved together
 incrementSize = 50  # unit: radius, initial increment size
 finalIncrementSize = 5  # unit: radius
@@ -101,6 +102,12 @@ tempShelf.close()
 binEdgesX = target['binEdgesX']
 binEdgesY = target['binEdgesY']
 arenaSizeInR = target['arenaSizeInR']
+if ifLastFrameCount == 1:
+    target['count_NDist'] = target['count_NDist_lastFrame']
+    target['count_NAngles'] = target['count_NAngles_lastFrame']
+    target['count_ODist'] = target['count_ODist_lastFrame']
+    target['count_X'] = target['count_X_lastFrame']
+    target['count_Y'] = target['count_Y_lastFrame']
 arenaSize = arenaSizeInR * R
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 
@@ -223,7 +230,8 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
 
     newLocations = raftLocations[:, currStepNum, :].copy()
     permutatedRaftIDs = list(np.random.permutation(numOfRafts))
-    for batchNum in np.arange(int(numOfRafts/batchSize)):
+    numOfBatches = int((numOfRafts + batchSize - 1)/batchSize)
+    for batchNum in np.arange(numOfBatches):
         # raftID = 0
         # batchNum = 0
         firstRaftInBatch = batchSize * batchNum
