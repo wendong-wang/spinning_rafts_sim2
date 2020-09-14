@@ -58,7 +58,7 @@ arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
 
-batchSize = 1  # how many rafts are moved together
+batchSize = 2  # how many rafts are moved together
 incrementSize = 50  # unit: radius, initial increment size
 finalIncrementSize = 5  # unit: radius
 incrementSwitchStep = 0  # step at which increment size is decreased
@@ -188,6 +188,12 @@ masterSwitch = 1  # 1: switch runNDist on after 100 step, 2: switch runNDist_NAn
 runNDist = 0  # switch for running NDist or not
 runNDist_NAngles = 0
 beta = 1000  # inverse of effective temperature
+target_klDiv_NDist_avg = 0.036
+target_klDiv_NDist_std = 0.007
+target_klDiv_X_avg = 0.072
+target_klDiv_X_std = 0.026
+target_klDiv_Y_avg = 0.082
+target_klDiv_Y_std = 0.031
 switchThreshold = (1/numOfRafts) * np.log2(1e9/numOfRafts)  # penalty for rafts in the probability zero region
 for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
     dict_X = fsr.count_kldiv_entropy_x(raftLocations[:, currStepNum, :], raftRadius, binEdgesX, target)
@@ -247,9 +253,12 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
 
         # calculate the difference in divergences
         diff_klDiv_X = dict_X["klDiv_X"] - klDiv_X[currStepNum]
+        diffToTarget_klDiv_X = dict_X["klDiv_X"] - target_klDiv_X_avg
         diff_klDiv_Y = dict_Y["klDiv_Y"] - klDiv_Y[currStepNum]
+        diffToTarget_klDiv_Y = dict_Y["klDiv_Y"] - target_klDiv_Y_avg
         if runNDist == 1:
             diff_klDiv_NDist = dict_NDist["klDiv_NDist"] - klDiv_NDist[currStepNum]
+            diffToTarget_klDiv_NDist = dict_NDist["klDiv_NDist"] - target_klDiv_NDist_avg
         if runNDist_NAngles == 1:
             diff_klDiv_NDist = dict_NDist_NAngles["klDiv_NDist"] - klDiv_NDist[currStepNum]
             diff_klDiv_NAngles = dict_NDist_NAngles["klDiv_NAngles"] - klDiv_NDist[currStepNum]
@@ -263,9 +272,15 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
         elif runNDist == 1:
             if (diff_klDiv_X <= 0) and (diff_klDiv_Y <= 0) and (diff_klDiv_NDist <= 0):
                 continue
+            elif (diffToTarget_klDiv_X <= target_klDiv_X_std) and \
+                    (diffToTarget_klDiv_Y <= target_klDiv_Y_std) and (diff_klDiv_NDist <= 0):
+                continue
+            elif (diffToTarget_klDiv_X <= target_klDiv_X_std) and (diffToTarget_klDiv_Y <= target_klDiv_Y_std) and \
+                    (diffToTarget_klDiv_NDist <= target_klDiv_NDist_std):
+                continue
             else:
                 randomProb = np.random.uniform(low=0, high=1, size=1)
-                diff_max = np.array((diff_klDiv_X, diff_klDiv_Y, diff_klDiv_NDist)).max()
+                diff_max = np.array((diffToTarget_klDiv_X, diffToTarget_klDiv_Y, diffToTarget_klDiv_NDist)).max()
                 # higher diff or higher beta means less likely to jump
                 jumpThresholdProb = np.exp(- diff_max * beta)
                 if randomProb < np.exp(- diff_max * beta):
