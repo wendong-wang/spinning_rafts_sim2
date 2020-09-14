@@ -100,7 +100,8 @@ tempShelf.close()
 # readjust parameters according to the target distributions
 binEdgesX = target['binEdgesX']
 binEdgesY = target['binEdgesY']
-arenaSize = target['arenaSizeInR'] * R
+arenaSizeInR = target['arenaSizeInR']
+arenaSize = arenaSizeInR * R
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 
 # make folder for the current dataset
@@ -177,10 +178,9 @@ currentFrameBGR = fsr.draw_raft_num_rh_coord(currentFrameBGR,
                                              np.int64(raftLocations[:, currStepNum, :] / scaleBar),
                                              numOfRafts)
 
-outputFileName = 'MonteCarlo_' + str(numOfRafts) + 'Rafts_' + 'startPosMeth' + str(initialPositionMethod) \
-                 + '_numOfSteps' + str(numOfTimeSteps) + '_currStep'
+outputImageName = 'MonteCarlo_{}Rafts_startPosMeth{}_numOfSteps{}_currStep{}.jpg'.format(
+    numOfRafts, initialPositionMethod, numOfTimeSteps, currStepNum)
 
-outputImageName = outputFileName + str(currStepNum).zfill(7) + '.jpg'
 cv.imwrite(outputImageName, currentFrameBGR)
 
 # try run optimization on x and y distribution first, once they are below a certain threshold, start optimizing NDist
@@ -216,14 +216,14 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
         hexOrderParas[:, currStepNum] = dict_NDist_NAngles['hexOrderParas']
 
     newLocations = raftLocations[:, currStepNum, :].copy()
-    permuatedRaftIDs = list(np.random.permutation(numOfRafts))
+    permutatedRaftIDs = list(np.random.permutation(numOfRafts))
     for batchNum in np.arange(int(numOfRafts/batchSize)):
         # raftID = 0
         # batchNum = 0
         firstRaftInBatch = batchSize * batchNum
         lastRaftInBatch = batchSize * (batchNum + 1) if (batchNum + 1) * batchSize <= numOfRafts else numOfRafts
-        raftIDs = permuatedRaftIDs[firstRaftInBatch:lastRaftInBatch]
-        restRaftIDS = list(set(permuatedRaftIDs) - set(raftIDs))
+        raftIDs = permutatedRaftIDs[firstRaftInBatch:lastRaftInBatch]
+        restRaftIDS = list(set(permutatedRaftIDs) - set(raftIDs))
 
         incrementInXY = np.random.uniform(low=-1, high=1, size=(batchSize, 2)) * incrementSize * R
         # take care of the cases where moving the rafts outside the arena or overlapping with another raft.
@@ -464,10 +464,8 @@ currentFrameBGR = fsr.draw_raft_num_rh_coord(currentFrameBGR,
                                              np.int64(raftLocations[:, currStepNum, :] / scaleBar),
                                              numOfRafts)
 
-outputFileName = 'MonteCarlo_' + str(numOfRafts) + 'Rafts_' + 'startPosMeth' + str(initialPositionMethod) \
-                 + '_numOfSteps' + str(numOfTimeSteps) + '_currStep'
-
-outputImageName = outputFileName + str(currStepNum).zfill(7) + '.jpg'
+outputImageName = 'MonteCarlo_{}Rafts_numOfSteps{}_currStepNum{}.jpg'.format(
+    numOfRafts, numOfTimeSteps, currStepNum)
 cv.imwrite(outputImageName, currentFrameBGR)
 
 # save the frame with maximum hex order parameter:
@@ -479,31 +477,46 @@ currentFrameBGR = fsr.draw_raft_num_rh_coord(currentFrameBGR,
                                              np.int64(raftLocations[:, stepNumOfMaxHex, :] / scaleBar),
                                              numOfRafts)
 
-outputFileName = 'MonteCarlo_' + str(numOfRafts) + 'Rafts_' + 'startPosMeth' + str(initialPositionMethod) \
-                 + '_numOfSteps' + str(numOfTimeSteps) + '_currStep'
+outputImageName = 'MonteCarlo_{}Rafts_numOfSteps{}_currStepNum{}.jpg'.format(
+    numOfRafts, numOfTimeSteps, stepNumOfMaxHex)
 
-outputImageName = outputFileName + str(stepNumOfMaxHex).zfill(7) + '.jpg'
 cv.imwrite(outputImageName, currentFrameBGR)
 
 # save files
-listOfVariablesToSave = ['numOfRafts', 'arenaSize', 'spinSpeed',
-                         'raftLocations',
-                         'binEdgesNeighborDistances', 'binEdgesOrbitingDistances',
-                         'binEdgesX', 'binEdgesX',
+listOfVariablesToSave = ['numOfRafts', 'arenaSizeInR', 'spinSpeed', 'numOfTimeSteps', 'currStepNum', 'raftRadius',
+                         'raftRadii', 'raftLocations',
+                         'target', 'runNDist_NAngles', 'runNDist', 'scaleBar', 'blankFrameBGR',
+                         'binEdgesNeighborDistances', 'binEdgesOrbitingDistances', 'binEdgesNeighborAngles',
+                         'binEdgesX', 'binEdgesY',
                          'entropy_NDist', 'count_NDist',
+                         'entropy_NAngles', 'count_NAngles',
                          'entropy_ODist', 'count_ODist',
                          'entropy_X', 'count_X',
-                         'entropy_Y', 'count_Y']
-tempShelf = shelve.open('target_' + str(numOfRafts) + "Rafts_" + str(spinSpeed) + 'rps')
-for key in listOfVariablesToSave:
-    try:
-        tempShelf[key] = globals()[key]
-    except TypeError:
-        #
-        # __builtins__, tempShelf, and imported modules can not be shelved.
-        #
-        # print('ERROR shelving: {0}'.format(key))
-        pass
-tempShelf.close()
+                         'entropy_Y', 'count_Y',
+                         'hexOrderParas',
+                         'hexaticOrderParameterAvgs', 'hexaticOrderParameterAvgNorms', 'hexaticOrderParameterModulii',
+                         'hexaticOrderParameterModuliiAvgs', 'hexaticOrderParameterModuliiAvgs',
+                         'klDiv_NDist', 'klDiv_NAngles', 'klDiv_ODist', 'klDiv_X', 'klDiv_Y', 'rejectionRates']
 
+with shelve.open('simulation_{}Rafts_{}rps'.format(numOfRafts, spinSpeed)) as tempShelf:
+    for key in listOfVariablesToSave:
+        try:
+            tempShelf[key] = globals()[key]
+        except TypeError:
+            pass
+
+#%% load existing simulation data shelve file
+os.chdir(dataDir)
+resultFolders = next(os.walk(dataDir))[1]
+
+mainFolderID = -1  # last folder
+os.chdir(resultFolders[mainFolderID])
+
+numOfRafts = 218
+spinSpeed = 30
+shelfName = 'simulation_{}Rafts_{}rps'.format(numOfRafts, spinSpeed)
+
+with shelve.open(shelfName, flag='r') as tempShelf:
+    for key in tempShelf:
+        globals()[key] = tempShelf[key]
 

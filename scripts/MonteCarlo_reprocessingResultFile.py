@@ -53,7 +53,7 @@ os.chdir(expDataDir)
 targetList = []
 for spinSpeed in spinSpeeds:
     # load target distributions
-    tempShelf = shelve.open('target_' + str(numOfRafts) + "Rafts_" + str(spinSpeed) + 'rps')
+    tempShelf = shelve.open('target_{}Rafts_{}rps'.format(numOfRafts, spinSpeed))
     variableListOfTargetDistributions = list(tempShelf.keys())
     target = {}
     for key in tempShelf:
