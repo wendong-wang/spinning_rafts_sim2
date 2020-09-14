@@ -53,7 +53,7 @@ if parallel_mode == 1:
 else:
     numOfRafts = 218
     spinSpeed = 30
-numOfTimeSteps = 2000  # 80000
+numOfTimeSteps = 30000  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -195,12 +195,12 @@ masterSwitch = 1  # 1: switch runNDist on after 100 step, 2: switch runNDist_NAn
 runNDist = 0  # switch for running NDist or not
 runNDist_NAngles = 0
 beta = 1000  # inverse of effective temperature
-target_klDiv_NDist_avg = 0.036
-target_klDiv_NDist_std = 0.007
-target_klDiv_X_avg = 0.072
-target_klDiv_X_std = 0.026
-target_klDiv_Y_avg = 0.082
-target_klDiv_Y_std = 0.031
+target_klDiv_NDist_avg = 0.02  # 0.036
+target_klDiv_NDist_std = 0.01  # 0.007
+target_klDiv_X_avg = 0.02  # 0.072
+target_klDiv_X_std = 0.01  # 0.026
+target_klDiv_Y_avg = 0.02  # 0.082
+target_klDiv_Y_std = 0.01  # 0.031
 switchThreshold = (1/numOfRafts) * np.log2(1e9/numOfRafts)  # penalty for rafts in the probability zero region
 for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
     dict_X = fsr.count_kldiv_entropy_x(raftLocations[:, currStepNum, :], raftRadius, binEdgesX, target)
@@ -239,14 +239,14 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
         raftIDs = permutatedRaftIDs[firstRaftInBatch:lastRaftInBatch]
         restRaftIDS = list(set(permutatedRaftIDs) - set(raftIDs))
 
-        incrementInXY = np.random.uniform(low=-1, high=1, size=(batchSize, 2)) * incrementSize * R
+        incrementInXY = np.random.uniform(low=-1, high=1, size=(len(raftIDs), 2)) * incrementSize * R
         # take care of the cases where moving the rafts outside the arena or overlapping with another raft.
         newXY = newLocations[raftIDs, :] + incrementInXY
         while newXY.max() > arenaSize - paddingAroundArena * R or newXY.min() < 0 + paddingAroundArena * R or \
               scipy_distance.cdist(newLocations[restRaftIDS, :], newXY).min() < 2 * R or \
                 (batchSize > 1 and
                  scipy_distance.cdist(newXY, newXY)[np.nonzero(scipy_distance.cdist(newXY, newXY))].min() < 2 * R):
-            incrementInXY = np.random.uniform(low=-1, high=1, size=(batchSize, 2)) * incrementSize * R
+            incrementInXY = np.random.uniform(low=-1, high=1, size=(len(raftIDs), 2)) * incrementSize * R
             newXY = newLocations[raftIDs, :] + incrementInXY
         newLocations[raftIDs, :] = newXY
 
