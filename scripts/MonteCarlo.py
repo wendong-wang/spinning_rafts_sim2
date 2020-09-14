@@ -45,22 +45,20 @@ dataDir = os.path.join(projectDir, 'data')
 if not os.path.isdir(dataDir):
     os.mkdir('data')
 
-
 # %% Monte Carlo simulation
 # key parameters
-os.chdir(dataDir)
 if parallel_mode == 1:
     numOfRafts = int(sys.argv[1])
     spinSpeed = int(sys.argv[2])
 else:
     numOfRafts = 218
     spinSpeed = 30
-numOfTimeSteps = 50000  # 80000
+numOfTimeSteps = 200  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
 
-batchSize = 2  # how many rafts are moved together
+batchSize = 1  # how many rafts are moved together
 incrementSize = 50  # unit: radius, initial increment size
 finalIncrementSize = 5  # unit: radius
 incrementSwitchStep = 0  # step at which increment size is decreased
@@ -88,6 +86,8 @@ binEdgesY = list(np.arange(0, arenaSize/R + binSize_XY, binSize_XY))
 
 # load target distributions
 expDuration = 20
+expDataDir = os.path.join(projectDir, '2020-09-14_exp patterns', '{}s'.format(expDuration))
+os.chdir(expDataDir)
 tempShelf = shelve.open('target_{}s_{}Rafts_{}rps_reprocessed'.format(expDuration, numOfRafts, spinSpeed))
 variableListOfTargetDistributions = list(tempShelf.keys())
 target = {}
@@ -104,6 +104,7 @@ arenaSize = target['arenaSizeInR'] * R
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 
 # make folder for the current dataset
+os.chdir(dataDir)
 now = datetime.datetime.now()
 if parallel_mode == 1:
     outputFolderName = now.strftime("%Y-%m-%d") + '_{}Rafts_totalSteps{}_{}rps_incre{}R_batchSize{}'.format(
@@ -229,7 +230,8 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
         newXY = newLocations[raftIDs, :] + incrementInXY
         while newXY.max() > arenaSize - paddingAroundArena * R or newXY.min() < 0 + paddingAroundArena * R or \
               scipy_distance.cdist(newLocations[restRaftIDS, :], newXY).min() < 2 * R or \
-                scipy_distance.cdist(newXY, newXY)[np.nonzero(scipy_distance.cdist(newXY, newXY))].min() < 2 * R:
+                (batchSize > 1 and
+                 scipy_distance.cdist(newXY, newXY)[np.nonzero(scipy_distance.cdist(newXY, newXY))].min() < 2 * R):
             incrementInXY = np.random.uniform(low=-1, high=1, size=(batchSize, 2)) * incrementSize * R
             newXY = newLocations[raftIDs, :] + incrementInXY
         newLocations[raftIDs, :] = newXY

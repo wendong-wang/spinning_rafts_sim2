@@ -1,0 +1,9 @@
+- to come out of local minimum
+  - increase temperature, decrease beta
+  - incrementStepSize -> 
+- the sequence of the moving particles
+- moving 1 or 10 or all rafts at the same time. 
+- decrease rejection rate
+  - if rejection rate > 90%, decrease incrementStepSize
+- 20s (15rps, 25rps, 60rps)
+- look at psi6 as a termination point. 

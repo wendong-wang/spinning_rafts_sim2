@@ -40,13 +40,14 @@ dataDir = os.path.join(projectDir, 'data')
 if not os.path.isdir(dataDir):
     os.mkdir('data')
 
-os.chdir(dataDir)
+# os.chdir(dataDir)
 # %% reprocessing the result file
+# enter the experimental data folder
 expDuration = 20  # unit: second
-expDataFolder = 'experimental data_{}s'.format(expDuration)
-os.chdir(expDataFolder)
 numOfRafts = 218
 spinSpeeds = [15, 20, 30, 40, 50, 60, 70]  # spin speeds for 20s data
+expDataDir = os.path.join(projectDir, '2020-09-14_exp patterns', '{}s'.format(expDuration))
+os.chdir(expDataDir)
 
 # reading all the experimental data
 targetList = []
