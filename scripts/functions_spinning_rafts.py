@@ -749,7 +749,7 @@ def count_kldiv_entropy_odist(raft_locations, raft_radius, edges_odist, target_d
     :param target_dict: dictionary containing target count_NDist, count_X, count_Y
     :param arena_center: 0 - not using arena center as center of mass, 1 - using arena center as center of mass
     """
-    if arena_center == 0:
+    if type(arena_center) == int:
         center_of_mass = raft_locations.mean(axis=0, keepdims=True)
     else:
         center_of_mass = arena_center.reshape(1, 2)

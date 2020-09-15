@@ -53,11 +53,13 @@ if parallel_mode == 1:
 else:
     numOfRafts = 218
     spinSpeed = 30
-numOfTimeSteps = 30000  # 80000
+numOfTimeSteps = 2000  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
 
+masterSwitch = 1  # 1: switch runNDist on after 100 step, 2: switch runNDist_NAngles on after 100 step
+XY_or_ODist = 1   # 0 - XY, 1 - ODist
 ifLastFrameCount = 1  # 0 - using counts from all frames, 1- using counts from the last frame only
 batchSize = 2  # how many rafts are moved together
 incrementSize = 50  # unit: radius, initial increment size
@@ -114,13 +116,10 @@ centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 # make folder for the current dataset
 os.chdir(dataDir)
 now = datetime.datetime.now()
-if parallel_mode == 1:
-    outputFolderName = now.strftime("%Y-%m-%d") + '_{}Rafts_totalSteps{}_{}rps_incre{}R_batchSize{}'.format(
-        numOfRafts, numOfTimeSteps, spinSpeed, finalIncrementSize, batchSize)
-else:
-    outputFolderName = now.strftime("%Y-%m-%d_%H-%M-%S") + \
-                       '_{}Rafts_totalSteps{}_{}rps_incre{}R_batchSize{}'.format(
-                           numOfRafts, numOfTimeSteps, spinSpeed, finalIncrementSize, batchSize)
+outputFolderName = now.strftime("%Y-%m-%d_%H-%M-%S") + \
+                   '_{}Rafts_totalSteps{}_{}rps_incre{}R_batchSize{}_lastFrame{}_XYorODist{}'.format(
+                       numOfRafts, numOfTimeSteps, spinSpeed, finalIncrementSize, batchSize, ifLastFrameCount,
+                       XY_or_ODist)
 
 if not os.path.isdir(outputFolderName):
     os.mkdir(outputFolderName)
@@ -191,10 +190,8 @@ outputImageName = 'MonteCarlo_{}Rafts_startPosMeth{}_numOfSteps{}_currStep{}.jpg
 cv.imwrite(outputImageName, currentFrameBGR)
 
 # try run optimization on x and y distribution first, once they are below a certain threshold, start optimizing NDist
-masterSwitch = 1  # 1: switch runNDist on after 100 step, 2: switch runNDist_NAngles on after 100 step
 runNDist = 0  # switch for running NDist or not
 runNDist_NAngles = 0
-using_XY_ODist = 0   # 0 - XY, 1 - ODist
 beta = 1000  # inverse of effective temperature
 target_klDiv_NDist_avg = 0.02  # 0.036
 target_klDiv_NDist_std = 0.01  # 0.007
@@ -256,13 +253,13 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
             newXY = newLocations[raftIDs, :] + incrementInXY
         newLocations[raftIDs, :] = newXY
 
-        if using_XY_ODist == 0:
+        if XY_or_ODist == 0:
             dict_X = fsr.count_kldiv_entropy_x(newLocations, raftRadius, binEdgesX, target)
             dict_Y = fsr.count_kldiv_entropy_y(newLocations, raftRadius, binEdgesY, target)
             # assign klDiv_global variables
             diff_klDiv_global = max(dict_X["klDiv_X"] - klDiv_X[currStepNum], dict_Y["klDiv_Y"] - klDiv_Y[currStepNum])
             diffToTarget_klDiv_global = max(dict_X["klDiv_X"], dict_Y["klDiv_Y"]) - target_klDiv_global_avg
-        elif using_XY_ODist == 1:
+        elif XY_or_ODist == 1:
             dict_ODist = fsr.count_kldiv_entropy_odist(newLocations, raftRadius, binEdgesOrbitingDistances, target,
                                                        centerOfArena)
             diff_klDiv_global = dict_ODist['klDiv_ODist'] - klDiv_ODist[currStepNum]
@@ -329,8 +326,13 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
                     rejectionRates[currStepNum] += batchSize
 
     # if the KL divergences of the global distributions are good, then switch on runNDist
-    if currStepNum > 100 and np.all(klDiv_X[currStepNum - 5: currStepNum] < switchThreshold) and \
-            np.all(klDiv_Y[currStepNum - 5: currStepNum] < switchThreshold):
+    if XY_or_ODist == 0:
+        global_klDiv_BelowThreshold = np.all(klDiv_X[currStepNum - 5: currStepNum] < switchThreshold) and \
+            np.all(klDiv_Y[currStepNum - 5: currStepNum] < switchThreshold)
+    elif XY_or_ODist == 1:
+        global_klDiv_BelowThreshold = np.all(klDiv_ODist[currStepNum - 5: currStepNum] < switchThreshold)
+
+    if currStepNum > 100 and global_klDiv_BelowThreshold:
         if masterSwitch == 1:
             runNDist = 1
         elif masterSwitch == 2:
@@ -378,6 +380,17 @@ ax.set_title('KL divergence of NAngles')
 ax.legend()
 plt.show()
 figName = 'KL divergence of NAngles'
+fig.savefig(figName)
+
+fig, ax = plt.subplots(ncols=1, nrows=1)
+ax.plot(np.arange(numOfTimeSteps - 1), klDiv_ODist[:-1], label='kldiv_ODist vs steps')
+ax.set_xlabel('time steps', size=20)
+ax.set_ylabel('KL divergence of ODist', size=20)
+ax.set_title('KL divergence of ODist')
+ax.set_yscale("log")
+ax.legend()
+plt.show()
+figName = 'KL divergence of ODist'
 fig.savefig(figName)
 
 # KL divergence of x vs time steps
@@ -448,6 +461,22 @@ ax.set_title('histogram of neighbor angles')
 ax.legend()
 plt.show()
 figName = 'Histogram of neighbor angles'
+fig.savefig(figName)
+
+# Histogram of orbiting distances
+fig, ax = plt.subplots(ncols=1, nrows=1)
+ax.plot(binEdgesOrbitingDistances[:-1],
+        count_ODist[:, currStepNum] / count_ODist[:, currStepNum].sum(),
+        label='ODist distribution of the last step')
+ax.plot(binEdgesOrbitingDistances[:-1], target['count_ODist']/target['count_ODist'].sum(),
+        label='target ODist distribution')
+ax.set_xlabel('orbiting distances', size=20)
+ax.set_ylabel('probability', size=20)
+ax.set_title('histogram of orbiting distances')
+ax.legend()
+ax.set_yscale("log")
+plt.show()
+figName = 'Histogram of orbiting distances'
 fig.savefig(figName)
 
 # Histogram of x
