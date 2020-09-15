@@ -194,21 +194,27 @@ cv.imwrite(outputImageName, currentFrameBGR)
 masterSwitch = 1  # 1: switch runNDist on after 100 step, 2: switch runNDist_NAngles on after 100 step
 runNDist = 0  # switch for running NDist or not
 runNDist_NAngles = 0
+using_XY_ODist = 0   # 0 - XY, 1 - ODist
 beta = 1000  # inverse of effective temperature
 target_klDiv_NDist_avg = 0.02  # 0.036
 target_klDiv_NDist_std = 0.01  # 0.007
-target_klDiv_X_avg = 0.02  # 0.072
-target_klDiv_X_std = 0.01  # 0.026
-target_klDiv_Y_avg = 0.02  # 0.082
-target_klDiv_Y_std = 0.01  # 0.031
+target_klDiv_NAngles_avg = 0.02
+target_klDiv_NAngles_std = 0.005
+target_klDiv_global_avg = 0.02  # 0.072  # for X, Y, ODist
+target_klDiv_global_std = 0.01  # 0.026
+
 switchThreshold = (1/numOfRafts) * np.log2(1e9/numOfRafts)  # penalty for rafts in the probability zero region
 for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
     dict_X = fsr.count_kldiv_entropy_x(raftLocations[:, currStepNum, :], raftRadius, binEdgesX, target)
     dict_Y = fsr.count_kldiv_entropy_y(raftLocations[:, currStepNum, :], raftRadius, binEdgesY, target)
+    dict_ODist = fsr.count_kldiv_entropy_odist(raftLocations[:, currStepNum, :], raftRadius, binEdgesOrbitingDistances,
+                                               target, centerOfArena)
     # assignments
     count_X[:, currStepNum], klDiv_X[currStepNum] = dict_X['count_X'], dict_X['klDiv_X'],
     count_Y[:, currStepNum], klDiv_Y[currStepNum] = dict_Y['count_Y'], dict_Y['klDiv_Y']
+    count_ODist[:, currStepNum], klDiv_ODist[currStepNum] = dict_ODist['count_ODist'], dict_ODist['klDiv_ODist']
     entropy_X[currStepNum], entropy_Y[currStepNum] = dict_X['entropy_X'], dict_Y['entropy_Y']
+    entropy_ODist[currStepNum] = dict_ODist['entropy_ODist']
 
     # if runNDist == 1:
     #     dict_NDist = fsr.count_kldiv_entropy_ndist(raftLocations[:, currStepNum, :], raftRadius,
@@ -250,45 +256,50 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
             newXY = newLocations[raftIDs, :] + incrementInXY
         newLocations[raftIDs, :] = newXY
 
-        dict_X = fsr.count_kldiv_entropy_x(newLocations, raftRadius, binEdgesX, target)
-        dict_Y = fsr.count_kldiv_entropy_y(newLocations, raftRadius, binEdgesY, target)
+        if using_XY_ODist == 0:
+            dict_X = fsr.count_kldiv_entropy_x(newLocations, raftRadius, binEdgesX, target)
+            dict_Y = fsr.count_kldiv_entropy_y(newLocations, raftRadius, binEdgesY, target)
+            # assign klDiv_global variables
+            diff_klDiv_global = max(dict_X["klDiv_X"] - klDiv_X[currStepNum], dict_Y["klDiv_Y"] - klDiv_Y[currStepNum])
+            diffToTarget_klDiv_global = max(dict_X["klDiv_X"], dict_Y["klDiv_Y"]) - target_klDiv_global_avg
+        elif using_XY_ODist == 1:
+            dict_ODist = fsr.count_kldiv_entropy_odist(newLocations, raftRadius, binEdgesOrbitingDistances, target,
+                                                       centerOfArena)
+            diff_klDiv_global = dict_ODist['klDiv_ODist'] - klDiv_ODist[currStepNum]
+            diffToTarget_klDiv_global = dict_ODist['klDiv_ODist'] - target_klDiv_global_avg
+
         if runNDist == 1:
             dict_NDist = fsr.count_kldiv_entropy_ndist(newLocations, raftRadius, binEdgesNeighborDistances, target)
+            diff_klDiv_NDist = dict_NDist["klDiv_NDist"] - klDiv_NDist[currStepNum]
+            diffToTarget_klDiv_NDist = dict_NDist["klDiv_NDist"] - target_klDiv_NDist_avg
+
         if runNDist_NAngles == 1:
             dict_NDist_NAngles = fsr.count_kldiv_entropy_ndist_nangles(newLocations, raftRadius,
                                                                        binEdgesNeighborDistances,
                                                                        binEdgesNeighborAngles, target)
-
-        # calculate the difference in divergences
-        diff_klDiv_X = dict_X["klDiv_X"] - klDiv_X[currStepNum]
-        diffToTarget_klDiv_X = dict_X["klDiv_X"] - target_klDiv_X_avg
-        diff_klDiv_Y = dict_Y["klDiv_Y"] - klDiv_Y[currStepNum]
-        diffToTarget_klDiv_Y = dict_Y["klDiv_Y"] - target_klDiv_Y_avg
-        if runNDist == 1:
-            diff_klDiv_NDist = dict_NDist["klDiv_NDist"] - klDiv_NDist[currStepNum]
-            diffToTarget_klDiv_NDist = dict_NDist["klDiv_NDist"] - target_klDiv_NDist_avg
-        if runNDist_NAngles == 1:
             diff_klDiv_NDist = dict_NDist_NAngles["klDiv_NDist"] - klDiv_NDist[currStepNum]
+            diffToTarget_klDiv_NDist = dict_NDist_NAngles["klDiv_NDist"] - target_klDiv_NDist_avg
             diff_klDiv_NAngles = dict_NDist_NAngles["klDiv_NAngles"] - klDiv_NDist[currStepNum]
+            diffToTarget_klDiv_NAngles = dict_NDist_NAngles["klDiv_NAngles"] - target_klDiv_NAngles_avg
+
         # accept the move if the divergences decrease, otherwise accept/reject according to probability
         if runNDist == 0 and runNDist_NAngles == 0:
-            if (diff_klDiv_X <= 0) and (diff_klDiv_Y <= 0):
+            if diff_klDiv_global <= 0:
                 continue
             else:
                 newLocations[raftIDs, :] = newLocations[raftIDs, :] - incrementInXY
                 rejectionRates[currStepNum] += batchSize
         elif runNDist == 1:
-            if (diff_klDiv_X <= 0) and (diff_klDiv_Y <= 0) and (diff_klDiv_NDist <= 0):
+            if diff_klDiv_global <= 0 and diff_klDiv_NDist <= 0:
                 continue
-            elif (diffToTarget_klDiv_X <= target_klDiv_X_std) and \
-                    (diffToTarget_klDiv_Y <= target_klDiv_Y_std) and (diff_klDiv_NDist <= 0):
+            elif (diffToTarget_klDiv_global <= target_klDiv_global_std) and (diff_klDiv_NDist <= 0):
                 continue
-            elif (diffToTarget_klDiv_X <= target_klDiv_X_std) and (diffToTarget_klDiv_Y <= target_klDiv_Y_std) and \
+            elif (diffToTarget_klDiv_global <= target_klDiv_global_std) and \
                     (diffToTarget_klDiv_NDist <= target_klDiv_NDist_std):
                 continue
             else:
                 randomProb = np.random.uniform(low=0, high=1, size=1)
-                diff_max = np.array((diffToTarget_klDiv_X, diffToTarget_klDiv_Y, diffToTarget_klDiv_NDist)).max()
+                diff_max = max(diffToTarget_klDiv_global, diffToTarget_klDiv_NDist)
                 # higher diff or higher beta means less likely to jump
                 jumpThresholdProb = np.exp(- diff_max * beta)
                 if randomProb < np.exp(- diff_max * beta):
@@ -297,11 +308,18 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
                     newLocations[raftIDs, :] = newLocations[raftIDs, :] - incrementInXY
                     rejectionRates[currStepNum] += batchSize
         elif runNDist_NAngles == 1:
-            if (diff_klDiv_X <= 0) and (diff_klDiv_Y <= 0) and (diff_klDiv_NDist <= 0) and (diff_klDiv_NAngles <= 0):
+            if (diff_klDiv_global <= 0) and (diff_klDiv_NDist <= 0) and (diff_klDiv_NAngles <= 0):
+                continue
+            elif (diffToTarget_klDiv_global <= target_klDiv_global_std) and (diff_klDiv_NDist <= 0) and \
+                    (diff_klDiv_NAngles <= 0):
+                continue
+            elif (diffToTarget_klDiv_global <= target_klDiv_global_std) and \
+                    (diffToTarget_klDiv_NDist <= target_klDiv_NDist_std) and \
+                    (diffToTarget_klDiv_NAngles <= target_klDiv_NAngles_std):
                 continue
             else:
                 randomProb = np.random.uniform(low=0, high=1, size=1)
-                diff_max = np.array((diff_klDiv_X, diff_klDiv_Y, diff_klDiv_NDist, diff_klDiv_NAngles)).max()
+                diff_max = max(diffToTarget_klDiv_global, diffToTarget_klDiv_NDist, diffToTarget_klDiv_NAngles)
                 # higher diff or higher beta means less likely to jump
                 jumpThresholdProb = np.exp(- diff_max * beta)
                 if randomProb < np.exp(- diff_max * beta):

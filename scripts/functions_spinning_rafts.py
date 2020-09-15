@@ -740,15 +740,19 @@ def count_kldiv_entropy_ndist_nangles(raft_locations, raft_radius, edges_ndist, 
     return dict_ndist_nangles
 
 
-def count_kldiv_entropy_odist(raft_locations, raft_radius, edges_odist, target_dict):
+def count_kldiv_entropy_odist(raft_locations, raft_radius, edges_odist, target_dict, arena_center=0):
     """
     calculate the count/distribution, KL divergence and entropy of neighbor distances
     :param raft_locations:
     :param raft_radius:
     :param edges_odist:
     :param target_dict: dictionary containing target count_NDist, count_X, count_Y
+    :param arena_center: 0 - not using arena center as center of mass, 1 - using arena center as center of mass
     """
-    center_of_mass = raft_locations.mean(axis=0, keepdims=True)
+    if arena_center == 0:
+        center_of_mass = raft_locations.mean(axis=0, keepdims=True)
+    else:
+        center_of_mass = arena_center.reshape(1, 2)
     orbiting_distances = scipy_distance.cdist(raft_locations, center_of_mass, 'euclidean')
     count_odist, _ = np.histogram(orbiting_distances / raft_radius, edges_odist)
     kldiv_odist = kl_divergence(count_odist, target_dict['count_ODist'])
