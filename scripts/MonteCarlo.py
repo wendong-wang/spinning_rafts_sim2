@@ -13,11 +13,11 @@ import datetime
 import cv2 as cv
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
+# import pandas as pd
 import progressbar
 # from scipy.integrate import RK45
-from scipy.integrate import solve_ivp
-from scipy.spatial import Voronoi as scipyVoronoi
+# from scipy.integrate import solve_ivp
+# from scipy.spatial import Voronoi as scipyVoronoi
 # import scipy.io
 from scipy.spatial import distance as scipy_distance
 
@@ -53,7 +53,7 @@ if parallel_mode == 1:
 else:
     numOfRafts = 218
     spinSpeed = 30
-numOfTimeSteps = 50000  # 80000
+numOfTimeSteps = 40000  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
