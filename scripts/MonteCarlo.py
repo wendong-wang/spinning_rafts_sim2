@@ -53,7 +53,7 @@ if parallel_mode == 1:
 else:
     numOfRafts = 218
     spinSpeed = 30
-numOfTimeSteps = 2000  # 80000
+numOfTimeSteps = 8000  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -193,12 +193,12 @@ cv.imwrite(outputImageName, currentFrameBGR)
 runNDist = 0  # switch for running NDist or not
 runNDist_NAngles = 0
 beta = 1000  # inverse of effective temperature
-target_klDiv_NDist_avg = 0.02  # 0.036
-target_klDiv_NDist_std = 0.01  # 0.007
+target_klDiv_NDist_avg = 0.01  # 0.036
+target_klDiv_NDist_std = 0.005  # 0.007
 target_klDiv_NAngles_avg = 0.02
 target_klDiv_NAngles_std = 0.005
-target_klDiv_global_avg = 0.02  # 0.072  # for X, Y, ODist
-target_klDiv_global_std = 0.01  # 0.026
+target_klDiv_global_avg = 0.01  # 0.072  # for X, Y, ODist
+target_klDiv_global_std = 0.005  # 0.026
 
 switchThreshold = (1/numOfRafts) * np.log2(1e9/numOfRafts)  # penalty for rafts in the probability zero region
 for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
@@ -516,7 +516,7 @@ hexaticOrderParameterModuliiStds = hexaticOrderParameterModulii.std(axis=0)
 fig, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(np.arange(numOfTimeSteps-1), hexaticOrderParameterAvgNorms[:-1], label='psi6 averages and norms')
 ax.errorbar(np.arange(numOfTimeSteps-1), hexaticOrderParameterModuliiAvgs[:-1],
-            yerr=hexaticOrderParameterModuliiStds[:-1], errorevery=int(numOfTimeSteps/200),
+            yerr=hexaticOrderParameterModuliiStds[:-1], errorevery=int(numOfTimeSteps/50),
             label='psi6 norms and averages')
 ax.set_xlabel('y', size=20)
 ax.set_ylabel('order parameter', size=20)
