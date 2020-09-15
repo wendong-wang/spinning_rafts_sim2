@@ -372,11 +372,21 @@ plt.show()
 figName = 'KL divergence of NDist'
 fig.savefig(figName)
 
+# recount NDist based on 16 bins instead of 96 bins
+count_NDist_16bins = np.ones((16, numOfTimeSteps))
+count_NDist_16bins[0:15, :] = count_NDist[0:15, :]
+count_NDist_16bins[15, :] = count_NDist[15:, :].sum(axis=0, keepdims=1)
+entropy_NDist_16bins = np.zeros(numOfTimeSteps)
+for ii in np.arange(numOfTimeSteps-1):
+    entropy_NDist_16bins[ii] = fsr.shannon_entropy(count_NDist_16bins[:, ii])
 fig, ax = plt.subplots(ncols=1, nrows=1)
-ax.plot(np.arange(numOfTimeSteps - 1), entropy_NDist[:-1], label='entropy_NDist vs steps')
+ax.plot(np.arange(numOfTimeSteps - 1), entropy_NDist[:-1], label='entropy_NDist min = {0:3.3f}'.format(
+    entropy_NDist[np.nonzero(entropy_NDist)].min()))
+ax.plot(np.arange(numOfTimeSteps - 1), entropy_NDist_16bins[:-1], label='entropy_NDist_16bins min = {0:3.3f}'.format(
+    np.nanmin(entropy_NDist_16bins[:-1])))
 ax.set_xlabel('time steps', size=20)
 ax.set_ylabel('entropy of NDist', size=20)
-ax.set_title('entropy of NDist, min = {0:3.3f}'.format(entropy_NDist[np.nonzero(entropy_NDist)].min()))
+ax.set_title('entropy of NDist')
 ax.legend()
 plt.show()
 figName = 'entropy of NDist'
@@ -571,7 +581,7 @@ listOfVariablesToSave = ['numOfRafts', 'arenaSizeInR', 'spinSpeed', 'numOfTimeSt
                          'target', 'runNDist_NAngles', 'runNDist', 'scaleBar', 'blankFrameBGR',
                          'binEdgesNeighborDistances', 'binEdgesOrbitingDistances', 'binEdgesNeighborAngles',
                          'binEdgesX', 'binEdgesY',
-                         'entropy_NDist', 'count_NDist',
+                         'entropy_NDist', 'count_NDist', 'entropy_NDist_16bins', 'count_NDist_16bins',
                          'entropy_NAngles', 'count_NAngles',
                          'entropy_ODist', 'count_ODist',
                          'entropy_X', 'count_X',
