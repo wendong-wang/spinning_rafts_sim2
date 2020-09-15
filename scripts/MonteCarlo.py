@@ -53,7 +53,7 @@ if parallel_mode == 1:
 else:
     numOfRafts = 218
     spinSpeed = 30
-numOfTimeSteps = 8000  # 80000
+numOfTimeSteps = 50000  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -256,7 +256,7 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
         if XY_or_ODist == 0:
             dict_X = fsr.count_kldiv_entropy_x(newLocations, raftRadius, binEdgesX, target)
             dict_Y = fsr.count_kldiv_entropy_y(newLocations, raftRadius, binEdgesY, target)
-            # assign klDiv_global variables
+            # assign klDiv_global
             diff_klDiv_global = max(dict_X["klDiv_X"] - klDiv_X[currStepNum], dict_Y["klDiv_Y"] - klDiv_Y[currStepNum])
             diffToTarget_klDiv_global = max(dict_X["klDiv_X"], dict_Y["klDiv_Y"]) - target_klDiv_global_avg
         elif XY_or_ODist == 1:
@@ -365,11 +365,21 @@ ax.plot(np.arange(numOfTimeSteps - 1), klDiv_NDist[:-1], label='kldiv_NDist vs s
 # ax.plot(np.arange(900, numOfTimeSteps - 2), np.diff(klDiv_NDist[:-1])[900:], label='kldiv_NDist vs steps')
 ax.set_xlabel('time steps', size=20)
 ax.set_ylabel('KL divergence of NDist', size=20)
-ax.set_title('KL divergence of NDist')
+ax.set_title('KL divergence of NDist min = {0:3.3f}'.format(klDiv_NDist.min()))
 ax.set_yscale("log")
 ax.legend()
 plt.show()
 figName = 'KL divergence of NDist'
+fig.savefig(figName)
+
+fig, ax = plt.subplots(ncols=1, nrows=1)
+ax.plot(np.arange(numOfTimeSteps - 1), entropy_NDist[:-1], label='entropy_NDist vs steps')
+ax.set_xlabel('time steps', size=20)
+ax.set_ylabel('entropy of NDist', size=20)
+ax.set_title('entropy of NDist, min = {0:3.3f}'.format(entropy_NDist[np.nonzero(entropy_NDist)].min()))
+ax.legend()
+plt.show()
+figName = 'entropy of NDist'
 fig.savefig(figName)
 
 fig, ax = plt.subplots(ncols=1, nrows=1)
@@ -533,7 +543,8 @@ currentFrameBGR = fsr.draw_rafts_rh_coord(blankFrameBGR.copy(),
 currentFrameBGR = fsr.draw_raft_num_rh_coord(currentFrameBGR,
                                              np.int64(raftLocations[:, currStepNum, :] / scaleBar),
                                              numOfRafts)
-
+currentFrameBGR = fsr.draw_frame_info_many(currentFrameBGR, currStepNum, hexaticOrderParameterAvgNorms[currStepNum],
+                                           hexaticOrderParameterModuliiAvgs[currStepNum], entropy_NDist[currStepNum])
 outputImageName = 'MonteCarlo_{}Rafts_numOfSteps{}_currStepNum{}.jpg'.format(
     numOfRafts, numOfTimeSteps, currStepNum)
 cv.imwrite(outputImageName, currentFrameBGR)
@@ -546,10 +557,12 @@ currentFrameBGR = fsr.draw_rafts_rh_coord(blankFrameBGR.copy(),
 currentFrameBGR = fsr.draw_raft_num_rh_coord(currentFrameBGR,
                                              np.int64(raftLocations[:, stepNumOfMaxHex, :] / scaleBar),
                                              numOfRafts)
-
+currentFrameBGR = fsr.draw_frame_info_many(currentFrameBGR, stepNumOfMaxHex,
+                                           hexaticOrderParameterAvgNorms[stepNumOfMaxHex],
+                                           hexaticOrderParameterModuliiAvgs[stepNumOfMaxHex],
+                                           entropy_NDist[stepNumOfMaxHex])
 outputImageName = 'MonteCarlo_{}Rafts_numOfSteps{}_currStepNum{}.jpg'.format(
     numOfRafts, numOfTimeSteps, stepNumOfMaxHex)
-
 cv.imwrite(outputImageName, currentFrameBGR)
 
 # save files
