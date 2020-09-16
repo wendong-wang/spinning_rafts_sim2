@@ -192,7 +192,7 @@ cv.imwrite(outputImageName, currentFrameBGR)
 # try run optimization on x and y distribution first, once they are below a certain threshold, start optimizing NDist
 runNDist = 0  # switch for running NDist or not
 runNDist_NAngles = 0
-beta = 1000  # inverse of effective temperature
+beta = 5  # inverse of effective temperature
 target_klDiv_NDist_avg = 0.001  # 0.036
 target_klDiv_NDist_std = 0.0005  # 0.007
 target_klDiv_NAngles_avg = 0.02
@@ -582,6 +582,9 @@ for key in dir():  # dir() gives all the names in the current scope
     if type(globals()[key]) == shelve.DbfilenameShelf:  # saving shelve object causes trouble
         print('Avoid shelving shelve object: {}'.format(key))
         continue
+    elif key == 'exit' or key == 'get_ipython' or key == 'quit':
+        print('IPython command not shelved: {}'.format(key))
+        continue
     else:
         try:
             shelfToSave[key] = globals()[key]
@@ -593,6 +596,7 @@ shelfToSave.close()
 #%% load existing simulation data shelve file
 os.chdir(dataDir)
 resultFolders = next(os.walk(dataDir))[1]
+# resultFolders.sort()
 
 mainFolderID = -1  # last folder
 os.chdir(resultFolders[mainFolderID])
