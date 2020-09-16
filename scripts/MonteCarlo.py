@@ -579,10 +579,15 @@ cv.imwrite(outputImageName, currentFrameBGR)
 # save files
 shelfToSave = shelve.open('simulation_{}Rafts_{}rps'.format(numOfRafts, spinSpeed))
 for key in dir():  # dir() gives all the names in the current scope
-    try:
-        shelfToSave[key] = globals()[key]
-    except TypeError:  # cannot shelve __builtins__, tempShelf, and imported modules.
-        pass
+    if type(globals()[key]) == shelve.DbfilenameShelf:  # saving shelve object causes trouble
+        print('Avoid shelving shelve object: {}'.format(key))
+        continue
+    else:
+        try:
+            shelfToSave[key] = globals()[key]
+        except TypeError:
+            # __builtins__, my_shelf, and imported modules can not be shelved.
+            print('TypeError shelving : {0}'.format(key))
 shelfToSave.close()
 
 #%% load existing simulation data shelve file
@@ -595,6 +600,7 @@ os.chdir(resultFolders[mainFolderID])
 numOfRafts = 218
 spinSpeed = 30
 shelfToRead = shelve.open('simulation_{}Rafts_{}rps'.format(numOfRafts, spinSpeed), flag='r')
+listOfVariablesInShelfToRead = list(shelfToRead.keys())
 for key in shelfToRead:
     globals()[key] = shelfToRead[key]
 shelfToRead.close()
