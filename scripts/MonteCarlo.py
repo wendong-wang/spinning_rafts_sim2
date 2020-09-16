@@ -53,7 +53,7 @@ if parallel_mode == 1:
 else:
     numOfRafts = 218
     spinSpeed = 30
-numOfTimeSteps = 40000  # 80000
+numOfTimeSteps = 200  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -91,15 +91,15 @@ binEdgesY = list(np.arange(0, arenaSize/R + binSize_XY, binSize_XY))
 expDuration = 20
 expDataDir = os.path.join(projectDir, '2020-09-14_exp patterns', '{}s'.format(expDuration))
 os.chdir(expDataDir)
-tempShelf = shelve.open('target_{}s_{}Rafts_{}rps_reprocessed'.format(expDuration, numOfRafts, spinSpeed))
-variableListOfTargetDistributions = list(tempShelf.keys())
+shelfOfTarget = shelve.open('target_{}s_{}Rafts_{}rps_reprocessed'.format(expDuration, numOfRafts, spinSpeed))
+variablesInTarget = list(shelfOfTarget.keys())
 target = {}
-for key in tempShelf:
+for key in shelfOfTarget:
     try:
-        target[key] = tempShelf[key]
+        target[key] = shelfOfTarget[key]
     except TypeError:
         pass
-tempShelf.close()
+shelfOfTarget.close()
 # readjust parameters according to the target distributions
 binEdgesX = target['binEdgesX']
 binEdgesY = target['binEdgesY']
@@ -378,7 +378,8 @@ count_NDist_16bins[0:15, :] = count_NDist[0:15, :]
 count_NDist_16bins[15, :] = count_NDist[15:, :].sum(axis=0, keepdims=1)
 entropy_NDist_16bins = np.zeros(numOfTimeSteps)
 for ii in np.arange(numOfTimeSteps-1):
-    entropy_NDist_16bins[ii] = fsr.shannon_entropy(count_NDist_16bins[:, ii])
+    if count_NDist_16bins[:, 0].sum() > 0:
+        entropy_NDist_16bins[ii] = fsr.shannon_entropy(count_NDist_16bins[:, ii])
 fig, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(np.arange(numOfTimeSteps - 1), entropy_NDist[:-1], label='entropy_NDist min = {0:3.3f}'.format(
     entropy_NDist[np.nonzero(entropy_NDist)].min()))
@@ -576,27 +577,13 @@ outputImageName = 'MonteCarlo_{}Rafts_numOfSteps{}_currStepNum{}.jpg'.format(
 cv.imwrite(outputImageName, currentFrameBGR)
 
 # save files
-listOfVariablesToSave = ['numOfRafts', 'arenaSizeInR', 'spinSpeed', 'numOfTimeSteps', 'currStepNum', 'raftRadius',
-                         'raftRadii', 'raftLocations',
-                         'target', 'runNDist_NAngles', 'runNDist', 'scaleBar', 'blankFrameBGR',
-                         'binEdgesNeighborDistances', 'binEdgesOrbitingDistances', 'binEdgesNeighborAngles',
-                         'binEdgesX', 'binEdgesY',
-                         'entropy_NDist', 'count_NDist', 'entropy_NDist_16bins', 'count_NDist_16bins',
-                         'entropy_NAngles', 'count_NAngles',
-                         'entropy_ODist', 'count_ODist',
-                         'entropy_X', 'count_X',
-                         'entropy_Y', 'count_Y',
-                         'hexOrderParas',
-                         'hexaticOrderParameterAvgs', 'hexaticOrderParameterAvgNorms', 'hexaticOrderParameterModulii',
-                         'hexaticOrderParameterModuliiAvgs', 'hexaticOrderParameterModuliiAvgs',
-                         'klDiv_NDist', 'klDiv_NAngles', 'klDiv_ODist', 'klDiv_X', 'klDiv_Y', 'rejectionRates']
-
-with shelve.open('simulation_{}Rafts_{}rps'.format(numOfRafts, spinSpeed)) as tempShelf:
-    for key in listOfVariablesToSave:
-        try:
-            tempShelf[key] = globals()[key]
-        except TypeError:
-            pass
+shelfToSave = shelve.open('simulation_{}Rafts_{}rps'.format(numOfRafts, spinSpeed))
+for key in dir():  # dir() gives all the names in the current scope
+    try:
+        shelfToSave[key] = globals()[key]
+    except TypeError:  # cannot shelve __builtins__, tempShelf, and imported modules.
+        pass
+shelfToSave.close()
 
 #%% load existing simulation data shelve file
 os.chdir(dataDir)
@@ -607,9 +594,9 @@ os.chdir(resultFolders[mainFolderID])
 
 numOfRafts = 218
 spinSpeed = 30
-shelfName = 'simulation_{}Rafts_{}rps'.format(numOfRafts, spinSpeed)
+shelfToRead = shelve.open('simulation_{}Rafts_{}rps'.format(numOfRafts, spinSpeed), flag='r')
+for key in shelfToRead:
+    globals()[key] = shelfToRead[key]
+shelfToRead.close()
 
-with shelve.open(shelfName, flag='r') as tempShelf:
-    for key in tempShelf:
-        globals()[key] = tempShelf[key]
 

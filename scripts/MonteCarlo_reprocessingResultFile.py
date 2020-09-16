@@ -53,15 +53,15 @@ os.chdir(expDataDir)
 targetList = []
 for spinSpeed in spinSpeeds:
     # load target distributions
-    tempShelf = shelve.open('target_{}Rafts_{}rps'.format(numOfRafts, spinSpeed))
-    variableListOfTargetDistributions = list(tempShelf.keys())
+    shelfOfTarget = shelve.open('target_{}Rafts_{}rps'.format(numOfRafts, spinSpeed))
+    variableListOfTargetDistributions = list(shelfOfTarget.keys())
     target = {}
-    for key in tempShelf:
+    for key in shelfOfTarget:
         try:
-            target[key] = tempShelf[key]
+            target[key] = shelfOfTarget[key]
         except TypeError:
             pass
-    tempShelf.close()
+    shelfOfTarget.close()
     targetList.append(target)
 
 listOfAllShelves = []
@@ -185,18 +185,18 @@ for ssId, spinSpeed in enumerate(spinSpeeds):
                              'hexaticOrderParameterAvg', 'hexaticOrderParameterAvgNorm', 'hexaticOrderParameterModulii',
                              'hexaticOrderParameterModuliiAvgs', 'hexaticOrderParameterModuliiAvgs']
 
-    tempShelf = shelve.open(outputFileName + '_reprocessed')
+    shelfToSave = shelve.open(outputFileName + '_reprocessed')
     for key in listOfVariablesToSave:
         try:
-            tempShelf[key] = globals()[key]
+            shelfToSave[key] = globals()[key]
         except TypeError:
             #
             # __builtins__, tempShelf, and imported modules can not be shelved.
             #
             # print('ERROR shelving: {0}'.format(key))
             pass
-    listOfAllShelves.append(dict(tempShelf))
-    tempShelf.close()
+    listOfAllShelves.append(dict(shelfToSave))
+    shelfToSave.close()
 
     # plotting
     # Histogram of target neighbor distances
