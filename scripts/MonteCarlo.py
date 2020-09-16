@@ -193,12 +193,12 @@ cv.imwrite(outputImageName, currentFrameBGR)
 runNDist = 0  # switch for running NDist or not
 runNDist_NAngles = 0
 beta = 1000  # inverse of effective temperature
-target_klDiv_NDist_avg = 0.01  # 0.036
-target_klDiv_NDist_std = 0.005  # 0.007
+target_klDiv_NDist_avg = 0.001  # 0.036
+target_klDiv_NDist_std = 0.0005  # 0.007
 target_klDiv_NAngles_avg = 0.02
 target_klDiv_NAngles_std = 0.005
-target_klDiv_global_avg = 0.01  # 0.072  # for X, Y, ODist
-target_klDiv_global_std = 0.005  # 0.026
+target_klDiv_global_avg = 0.001  # 0.072  # for X, Y, ODist
+target_klDiv_global_std = 0.0005  # 0.026
 
 switchThreshold = (1/numOfRafts) * np.log2(1e9/numOfRafts)  # penalty for rafts in the probability zero region
 for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
@@ -378,13 +378,13 @@ count_NDist_16bins[0:15, :] = count_NDist[0:15, :]
 count_NDist_16bins[15, :] = count_NDist[15:, :].sum(axis=0, keepdims=1)
 entropy_NDist_16bins = np.zeros(numOfTimeSteps)
 for ii in np.arange(numOfTimeSteps-1):
-    if count_NDist_16bins[:, 0].sum() > 0:
+    if count_NDist_16bins[:, ii].sum() > 0:
         entropy_NDist_16bins[ii] = fsr.shannon_entropy(count_NDist_16bins[:, ii])
 fig, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(np.arange(numOfTimeSteps - 1), entropy_NDist[:-1], label='entropy_NDist min = {0:3.3f}'.format(
     entropy_NDist[np.nonzero(entropy_NDist)].min()))
 ax.plot(np.arange(numOfTimeSteps - 1), entropy_NDist_16bins[:-1], label='entropy_NDist_16bins min = {0:3.3f}'.format(
-    np.nanmin(entropy_NDist_16bins[:-1])))
+    entropy_NDist_16bins[np.nonzero(entropy_NDist_16bins)].min()))
 ax.set_xlabel('time steps', size=20)
 ax.set_ylabel('entropy of NDist', size=20)
 ax.set_title('entropy of NDist')
