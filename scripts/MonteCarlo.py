@@ -53,7 +53,7 @@ if parallel_mode == 1:
 else:
     numOfRafts = 50
     spinSpeed = 30
-numOfTimeSteps = 1000  # 80000
+numOfTimeSteps = 5000  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -61,10 +61,10 @@ R = raftRadius = 1.5e2  # unit: micron
 masterSwitch = 1  # 1: switch runNDist on after 100 step, 2: switch runNDist_NAngles on after 100 step
 XY_or_ODist = 1   # 0 - XY, 1 - ODist
 ifLastFrameCount = 1  # 0 - using counts from all frames, 1- using counts from the last frame only
-beta = 1000  # inverse of effective temperature
+beta = 1  # inverse of effective temperature
 batchSize = 1  # how many rafts are moved together
 incrementSize = 50  # unit: radius, initial increment size
-finalIncrementSize = 20  # unit: radius
+finalIncrementSize = 3  # unit: radius
 incrementSwitchStep = 0  # step at which increment size is decreased
 rejectionThreshold = 0.9  # threshold below which we want to keep the rejection rate
 adaptiveIncrement = 0.7  # factor by which we decrease the increment step size each time
@@ -308,7 +308,6 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
                 # higher diff or higher beta means less likely to jump
                 if randomProb < np.exp(- diff_max * beta):
                     acceptedBasedOnProbs.append(currStepNum)
-                    acceptedBasedOnProbs.append(batchNum)
                     continue
                 else:
                     newLocations[raftIDs, :] = newLocations[raftIDs, :] - incrementInXY
@@ -603,6 +602,7 @@ for key in dir():  # dir() gives all the names in the current scope
             # __builtins__, my_shelf, and imported modules can not be shelved.
             print('TypeError shelving : {0}'.format(key))
 shelfToSave.close()
+
 
 #%% load existing simulation data shelve file
 os.chdir(dataDir)
