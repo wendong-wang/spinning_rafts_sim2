@@ -51,9 +51,9 @@ if parallel_mode == 1:
     numOfRafts = int(sys.argv[1])
     spinSpeed = int(sys.argv[2])
 else:
-    numOfRafts = 218
+    numOfRafts = 50
     spinSpeed = 30
-numOfTimeSteps = 200  # 80000
+numOfTimeSteps = 1000  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -61,9 +61,10 @@ R = raftRadius = 1.5e2  # unit: micron
 masterSwitch = 1  # 1: switch runNDist on after 100 step, 2: switch runNDist_NAngles on after 100 step
 XY_or_ODist = 1   # 0 - XY, 1 - ODist
 ifLastFrameCount = 1  # 0 - using counts from all frames, 1- using counts from the last frame only
-batchSize = 2  # how many rafts are moved together
+beta = 1000  # inverse of effective temperature
+batchSize = 1  # how many rafts are moved together
 incrementSize = 50  # unit: radius, initial increment size
-finalIncrementSize = 5  # unit: radius
+finalIncrementSize = 20  # unit: radius
 incrementSwitchStep = 0  # step at which increment size is decreased
 rejectionThreshold = 0.9  # threshold below which we want to keep the rejection rate
 adaptiveIncrement = 0.7  # factor by which we decrease the increment step size each time
@@ -88,10 +89,16 @@ binEdgesX = list(np.arange(0, arenaSize/R + binSize_XY, binSize_XY))
 binEdgesY = list(np.arange(0, arenaSize/R + binSize_XY, binSize_XY))
 
 # load target distributions
-expDuration = 20
-expDataDir = os.path.join(projectDir, '2020-09-14_exp patterns', '{}s'.format(expDuration))
-os.chdir(expDataDir)
-shelfOfTarget = shelve.open('target_{}s_{}Rafts_{}rps_reprocessed'.format(expDuration, numOfRafts, spinSpeed))
+experimental_generated = 1  # 0: experimental 20s data, 1: generated hexagonal patterns
+if experimental_generated == 0:
+    expDuration = 20
+    expDataDir = os.path.join(projectDir, '2020-09-14_exp patterns', '{}s'.format(expDuration))
+    os.chdir(expDataDir)
+    shelfOfTarget = shelve.open('target_{}s_{}Rafts_{}rps_reprocessed'.format(expDuration, numOfRafts, spinSpeed))
+elif experimental_generated == 1:
+    genPatternDir = os.path.join(projectDir, '2020-09-17_generated patterns')
+    os.chdir(genPatternDir)
+    shelfOfTarget = shelve.open('generatedHexPattern_{}Rafts_processed'.format(numOfRafts))
 variablesInTarget = list(shelfOfTarget.keys())
 target = {}
 for key in shelfOfTarget:
@@ -117,9 +124,9 @@ centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 os.chdir(dataDir)
 now = datetime.datetime.now()
 outputFolderName = now.strftime("%Y-%m-%d_%H-%M-%S") + \
-                   '_{}Rafts_totalSteps{}_{}rps_incre{}R_batchSize{}_lastFrame{}_XYorODist{}'.format(
+                   '_{}Rafts_totalSteps{}_{}rps_incre{}R_batchSize{}_lastFrame{}_XYorODist{}_initialBeta{}'.format(
                        numOfRafts, numOfTimeSteps, spinSpeed, finalIncrementSize, batchSize, ifLastFrameCount,
-                       XY_or_ODist)
+                       XY_or_ODist, beta)
 
 if not os.path.isdir(outputFolderName):
     os.mkdir(outputFolderName)
@@ -192,13 +199,18 @@ cv.imwrite(outputImageName, currentFrameBGR)
 # try run optimization on x and y distribution first, once they are below a certain threshold, start optimizing NDist
 runNDist = 0  # switch for running NDist or not
 runNDist_NAngles = 0
-beta = 5  # inverse of effective temperature
-target_klDiv_NDist_avg = 0.001  # 0.036
-target_klDiv_NDist_std = 0.0005  # 0.007
-target_klDiv_NAngles_avg = 0.02
+target_klDiv_NDist_avg = 0.01  # 0.036
+target_klDiv_NDist_std = 0.005  # 0.007
+target_klDiv_NAngles_avg = 0.01
 target_klDiv_NAngles_std = 0.005
-target_klDiv_global_avg = 0.001  # 0.072  # for X, Y, ODist
-target_klDiv_global_std = 0.0005  # 0.026
+target_klDiv_global_avg = 0.01  # 0.072  # for X, Y, ODist
+target_klDiv_global_std = 0.005  # 0.026
+
+jumpThresCounts = 0
+jumpThresCountInterval = 20
+jumpThresholdProbs = np.zeros(jumpThresCountInterval)
+diffMaxValues = np.ones(jumpThresCountInterval)
+optimumThreshold = 0.01
 
 switchThreshold = (1/numOfRafts) * np.log2(1e9/numOfRafts)  # penalty for rafts in the probability zero region
 for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
@@ -298,12 +310,18 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
                 randomProb = np.random.uniform(low=0, high=1, size=1)
                 diff_max = max(diffToTarget_klDiv_global, diffToTarget_klDiv_NDist)
                 # higher diff or higher beta means less likely to jump
-                jumpThresholdProb = np.exp(- diff_max * beta)
                 if randomProb < np.exp(- diff_max * beta):
                     continue
                 else:
                     newLocations[raftIDs, :] = newLocations[raftIDs, :] - incrementInXY
                     rejectionRates[currStepNum] += batchSize
+                jumpThresholdProbs[jumpThresCounts % jumpThresCountInterval] = (np.exp(- diff_max * beta))
+                diffMaxValues[jumpThresCounts % jumpThresCountInterval] = diff_max
+                jumpThresCounts += 1
+                # if jumpThresholdProbs.mean() > optimumThreshold:
+                #     beta = beta * 2
+                #     jumpThresholdProbs = np.zeros(jumpThresCountInterval)
+
         elif runNDist_NAngles == 1:
             if (diff_klDiv_global <= 0) and (diff_klDiv_NDist <= 0) and (diff_klDiv_NAngles <= 0):
                 continue
