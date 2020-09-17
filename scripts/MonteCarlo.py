@@ -206,11 +206,7 @@ target_klDiv_NAngles_std = 0.005
 target_klDiv_global_avg = 0.01  # 0.072  # for X, Y, ODist
 target_klDiv_global_std = 0.005  # 0.026
 
-jumpThresCounts = 0
-jumpThresCountInterval = 20
-jumpThresholdProbs = np.zeros(jumpThresCountInterval)
-diffMaxValues = np.ones(jumpThresCountInterval)
-optimumThreshold = 0.01
+acceptedBasedOnProbs = []
 
 switchThreshold = (1/numOfRafts) * np.log2(1e9/numOfRafts)  # penalty for rafts in the probability zero region
 for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
@@ -311,16 +307,13 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
                 diff_max = max(diffToTarget_klDiv_global, diffToTarget_klDiv_NDist)
                 # higher diff or higher beta means less likely to jump
                 if randomProb < np.exp(- diff_max * beta):
+                    acceptedBasedOnProbs.append(currStepNum)
+                    acceptedBasedOnProbs.append(batchNum)
                     continue
                 else:
                     newLocations[raftIDs, :] = newLocations[raftIDs, :] - incrementInXY
                     rejectionRates[currStepNum] += batchSize
-                jumpThresholdProbs[jumpThresCounts % jumpThresCountInterval] = (np.exp(- diff_max * beta))
-                diffMaxValues[jumpThresCounts % jumpThresCountInterval] = diff_max
-                jumpThresCounts += 1
-                # if jumpThresholdProbs.mean() > optimumThreshold:
-                #     beta = beta * 2
-                #     jumpThresholdProbs = np.zeros(jumpThresCountInterval)
+
 
         elif runNDist_NAngles == 1:
             if (diff_klDiv_global <= 0) and (diff_klDiv_NDist <= 0) and (diff_klDiv_NAngles <= 0):
