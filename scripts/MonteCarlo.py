@@ -53,7 +53,7 @@ if parallel_mode == 1:
 else:
     numOfRafts = 218
     spinSpeed = 30
-numOfTimeSteps = 1000  # 80000
+numOfTimeSteps = 100  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -186,10 +186,10 @@ elif initialPositionMethod == 4:
     os.chdir(dataDir)
     resultFolders = next(os.walk(dataDir))[1]
     resultFolders.sort()
-    resultFolderID = 41  # the folder that contains the desired result
+    resultFolderID = 43  # the folder that contains the desired result
     os.chdir(resultFolders[resultFolderID])
     shelfToLoadFrame = shelve.open('simulation_{}Rafts_{}rps'.format(numOfRafts, spinSpeed), flag='r')
-    frameNumToLoad = 23798  # the frame number to load
+    frameNumToLoad = 652  # the frame number to load
     raftLocations[:, currStepNum, :] = shelfToLoadFrame['raftLocations'][:, frameNumToLoad, :]
     shelfToLoadFrame.close()
     os.chdir(dataDir)
@@ -370,31 +370,34 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
             incrementSize = finalIncrementSize  # unit: radius
             incrementSwitchStep = currStepNum
 
-    if XY_or_ODist == 0:
-        global_klDiv_target_fulfilled = np.all(klDiv_X[currStepNum - 5: currStepNum] <
-                                               target_klDiv_global_avg + target_klDiv_global_std) and \
-                                        np.all(klDiv_Y[currStepNum - 5: currStepNum] <
-                                               target_klDiv_global_avg + target_klDiv_global_std)
-    elif XY_or_ODist == 1:
-        global_klDiv_target_fulfilled = np.all(klDiv_ODist[currStepNum - 5: currStepNum] <
-                                               target_klDiv_global_avg + target_klDiv_global_std)
+    if (initialPositionMethod == 4 and currStepNum > 5) and (runNDist == 1 or runNDist_NAngles == 1):
+        global_klDiv_target_fulfilled = 0
+        local_klDiv_target_fulfilled = 0
+        if XY_or_ODist == 0:
+            global_klDiv_target_fulfilled = np.all(klDiv_X[currStepNum - 5: currStepNum] <
+                                                   target_klDiv_global_avg + target_klDiv_global_std) and \
+                                            np.all(klDiv_Y[currStepNum - 5: currStepNum] <
+                                                   target_klDiv_global_avg + target_klDiv_global_std)
+        elif XY_or_ODist == 1:
+            global_klDiv_target_fulfilled = np.all(klDiv_ODist[currStepNum - 5: currStepNum] <
+                                                   target_klDiv_global_avg + target_klDiv_global_std)
 
-    if runNDist == 1:
-        local_klDiv_target_fulfilled = np.all(klDiv_NDist[currStepNum - 5: currStepNum] <
-                                              target_klDiv_NDist_avg + target_klDiv_NDist_std)
-    elif runNDist_NAngles == 1:
-        local_klDiv_target_fulfilled = np.all(klDiv_NDist[currStepNum - 5: currStepNum] <
-                                              target_klDiv_NDist_avg + target_klDiv_NDist_std) and \
-                                       np.all(klDiv_NAngles[currStepNum - 5: currStepNum] <
-                                              target_klDiv_NAngles_avg + target_klDiv_NAngles_std)
+        if runNDist == 1:
+            local_klDiv_target_fulfilled = np.all(klDiv_NDist[currStepNum - 5: currStepNum] <
+                                                  target_klDiv_NDist_avg + target_klDiv_NDist_std)
+        elif runNDist_NAngles == 1:
+            local_klDiv_target_fulfilled = np.all(klDiv_NDist[currStepNum - 5: currStepNum] <
+                                                  target_klDiv_NDist_avg + target_klDiv_NDist_std) and \
+                                           np.all(klDiv_NAngles[currStepNum - 5: currStepNum] <
+                                                  target_klDiv_NAngles_avg + target_klDiv_NAngles_std)
 
-    if global_klDiv_target_fulfilled and local_klDiv_target_fulfilled:
-        target_klDiv_NDist_avg = target_klDiv_NDist_avg/10
-        target_klDiv_NDist_std = target_klDiv_NDist_std/10
-        target_klDiv_NAngles_avg = target_klDiv_NAngles_avg/10
-        target_klDiv_NAngles_std = target_klDiv_NAngles_std/10
-        target_klDiv_global_avg = target_klDiv_global_avg/10
-        target_klDiv_global_std = target_klDiv_global_std/10
+        if global_klDiv_target_fulfilled and local_klDiv_target_fulfilled:
+            target_klDiv_NDist_avg = target_klDiv_NDist_avg/10
+            target_klDiv_NDist_std = target_klDiv_NDist_std/10
+            target_klDiv_NAngles_avg = target_klDiv_NAngles_avg/10
+            target_klDiv_NAngles_std = target_klDiv_NAngles_std/10
+            target_klDiv_global_avg = target_klDiv_global_avg/10
+            target_klDiv_global_std = target_klDiv_global_std/10
 
     # After running for "NumOfTestSteps" if the minimum of rejection rate (in last 100 frames) is higher
     # than the "rejectionThreshold" we decrease the increment size
