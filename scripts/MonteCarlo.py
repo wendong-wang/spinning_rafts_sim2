@@ -51,9 +51,9 @@ if parallel_mode == 1:
     numOfRafts = int(sys.argv[1])
     spinSpeed = int(sys.argv[2])
 else:
-    numOfRafts = 50
+    numOfRafts = 218
     spinSpeed = 30
-numOfTimeSteps = 5000  # 80000
+numOfTimeSteps = 1000  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -61,10 +61,10 @@ R = raftRadius = 1.5e2  # unit: micron
 masterSwitch = 1  # 1: switch runNDist on after 100 step, 2: switch runNDist_NAngles on after 100 step
 XY_or_ODist = 1   # 0 - XY, 1 - ODist
 ifLastFrameCount = 1  # 0 - using counts from all frames, 1- using counts from the last frame only
-beta = 1  # inverse of effective temperature
+beta = 1000  # inverse of effective temperature
 batchSize = 1  # how many rafts are moved together
 incrementSize = 50  # unit: radius, initial increment size
-finalIncrementSize = 3  # unit: radius
+finalIncrementSize = 5  # unit: radius
 incrementSwitchStep = 0  # step at which increment size is decreased
 rejectionThreshold = 0.9  # threshold below which we want to keep the rejection rate
 adaptiveIncrement = 0.7  # factor by which we decrease the increment step size each time
@@ -89,7 +89,7 @@ binEdgesX = list(np.arange(0, arenaSize/R + binSize_XY, binSize_XY))
 binEdgesY = list(np.arange(0, arenaSize/R + binSize_XY, binSize_XY))
 
 # load target distributions
-experimental_generated = 1  # 0: experimental 20s data, 1: generated hexagonal patterns
+experimental_generated = 0  # 0: experimental 20s data, 1: generated hexagonal patterns
 if experimental_generated == 0:
     expDuration = 20
     expDataDir = os.path.join(projectDir, '2020-09-14_exp patterns', '{}s'.format(expDuration))
@@ -159,8 +159,8 @@ hexOrderParas = np.zeros((numOfRafts, numOfTimeSteps), dtype="complex")
 rejectionRates = np.zeros(numOfTimeSteps)
 
 # initialize rafts positions: 1 - random positions, 2 - fixed initial position,
-# 3 - hexagonal fixed position
-initialPositionMethod = 1
+# 3 - hexagonal fixed position, 4 - load a particular frame from a previous run
+initialPositionMethod = 4
 currStepNum = 0
 paddingAroundArena = 5  # unit: R
 if initialPositionMethod == 1:
@@ -182,6 +182,18 @@ elif initialPositionMethod == 2:
     raftLocations[:, currStepNum, :] = fsr.square_spiral(numOfRafts, raftRadius * 2 + 100, centerOfArena)
 elif initialPositionMethod == 3:
     raftLocations[:, currStepNum, :] = fsr.hexagonal_spiral(numOfRafts, raftRadius * 2 + 200, centerOfArena)
+elif initialPositionMethod == 4:
+    os.chdir(dataDir)
+    resultFolders = next(os.walk(dataDir))[1]
+    resultFolders.sort()
+    resultFolderID = 41  # the folder that contains the desired result
+    os.chdir(resultFolders[resultFolderID])
+    shelfToLoadFrame = shelve.open('simulation_{}Rafts_{}rps'.format(numOfRafts, spinSpeed), flag='r')
+    frameNumToLoad = 23798  # the frame number to load
+    raftLocations[:, currStepNum, :] = shelfToLoadFrame['raftLocations'][:, frameNumToLoad, :]
+    shelfToLoadFrame.close()
+    os.chdir(dataDir)
+    os.chdir(outputFolderName)
 
 # drawing rafts
 currentFrameBGR = fsr.draw_rafts_rh_coord(blankFrameBGR.copy(),
@@ -199,12 +211,19 @@ cv.imwrite(outputImageName, currentFrameBGR)
 # try run optimization on x and y distribution first, once they are below a certain threshold, start optimizing NDist
 runNDist = 0  # switch for running NDist or not
 runNDist_NAngles = 0
-target_klDiv_NDist_avg = 0.01  # 0.036
-target_klDiv_NDist_std = 0.005  # 0.007
-target_klDiv_NAngles_avg = 0.01
-target_klDiv_NAngles_std = 0.005
-target_klDiv_global_avg = 0.01  # 0.072  # for X, Y, ODist
-target_klDiv_global_std = 0.005  # 0.026
+if initialPositionMethod == 4:
+    if masterSwitch == 1:
+        runNDist = 1
+    elif masterSwitch == 2:
+        runNDist_NAngles = 1
+    incrementSize = finalIncrementSize
+
+target_klDiv_NDist_avg = 0.001  # 0.036
+target_klDiv_NDist_std = 0.0005  # 0.007
+target_klDiv_NAngles_avg = 0.001
+target_klDiv_NAngles_std = 0.0005
+target_klDiv_global_avg = 0.001  # 0.072  # for X, Y, ODist
+target_klDiv_global_std = 0.0005  # 0.026
 
 acceptedBasedOnProbs = []
 
@@ -313,7 +332,6 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
                     newLocations[raftIDs, :] = newLocations[raftIDs, :] - incrementInXY
                     rejectionRates[currStepNum] += batchSize
 
-
         elif runNDist_NAngles == 1:
             if (diff_klDiv_global <= 0) and (diff_klDiv_NDist <= 0) and (diff_klDiv_NAngles <= 0):
                 continue
@@ -336,20 +354,47 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
                     rejectionRates[currStepNum] += batchSize
 
     # if the KL divergences of the global distributions are good, then switch on runNDist
-    if XY_or_ODist == 0:
-        global_klDiv_BelowThreshold = np.all(klDiv_X[currStepNum - 5: currStepNum] < switchThreshold) and \
-            np.all(klDiv_Y[currStepNum - 5: currStepNum] < switchThreshold)
-    elif XY_or_ODist == 1:
-        global_klDiv_BelowThreshold = np.all(klDiv_ODist[currStepNum - 5: currStepNum] < switchThreshold)
+    if runNDist == 0 and runNDist_NAngles == 0 and currStepNum > 100:
+        if XY_or_ODist == 0:
+            global_klDiv_BelowThreshold = np.all(klDiv_X[currStepNum - 5: currStepNum] < switchThreshold) and \
+                np.all(klDiv_Y[currStepNum - 5: currStepNum] < switchThreshold)
+        elif XY_or_ODist == 1:
+            global_klDiv_BelowThreshold = np.all(klDiv_ODist[currStepNum - 5: currStepNum] < switchThreshold)
 
-    if currStepNum > 100 and global_klDiv_BelowThreshold:
-        if masterSwitch == 1:
-            runNDist = 1
-        elif masterSwitch == 2:
-            runNDist_NAngles = 1
-        #
-        incrementSize = finalIncrementSize  # unit: radius
-        incrementSwitchStep = currStepNum
+        if global_klDiv_BelowThreshold:
+            if masterSwitch == 1:
+                runNDist = 1
+            elif masterSwitch == 2:
+                runNDist_NAngles = 1
+            #
+            incrementSize = finalIncrementSize  # unit: radius
+            incrementSwitchStep = currStepNum
+
+    if XY_or_ODist == 0:
+        global_klDiv_target_fulfilled = np.all(klDiv_X[currStepNum - 5: currStepNum] <
+                                               target_klDiv_global_avg + target_klDiv_global_std) and \
+                                        np.all(klDiv_Y[currStepNum - 5: currStepNum] <
+                                               target_klDiv_global_avg + target_klDiv_global_std)
+    elif XY_or_ODist == 1:
+        global_klDiv_target_fulfilled = np.all(klDiv_ODist[currStepNum - 5: currStepNum] <
+                                               target_klDiv_global_avg + target_klDiv_global_std)
+
+    if runNDist == 1:
+        local_klDiv_target_fulfilled = np.all(klDiv_NDist[currStepNum - 5: currStepNum] <
+                                              target_klDiv_NDist_avg + target_klDiv_NDist_std)
+    elif runNDist_NAngles == 1:
+        local_klDiv_target_fulfilled = np.all(klDiv_NDist[currStepNum - 5: currStepNum] <
+                                              target_klDiv_NDist_avg + target_klDiv_NDist_std) and \
+                                       np.all(klDiv_NAngles[currStepNum - 5: currStepNum] <
+                                              target_klDiv_NAngles_avg + target_klDiv_NAngles_std)
+
+    if global_klDiv_target_fulfilled and local_klDiv_target_fulfilled:
+        target_klDiv_NDist_avg = target_klDiv_NDist_avg/10
+        target_klDiv_NDist_std = target_klDiv_NDist_std/10
+        target_klDiv_NAngles_avg = target_klDiv_NAngles_avg/10
+        target_klDiv_NAngles_std = target_klDiv_NAngles_std/10
+        target_klDiv_global_avg = target_klDiv_global_avg/10
+        target_klDiv_global_std = target_klDiv_global_std/10
 
     # After running for "NumOfTestSteps" if the minimum of rejection rate (in last 100 frames) is higher
     # than the "rejectionThreshold" we decrease the increment size
@@ -549,12 +594,23 @@ ax.plot(np.arange(numOfTimeSteps-1), hexaticOrderParameterAvgNorms[:-1], label='
 ax.errorbar(np.arange(numOfTimeSteps-1), hexaticOrderParameterModuliiAvgs[:-1],
             yerr=hexaticOrderParameterModuliiStds[:-1], errorevery=int(numOfTimeSteps/50),
             label='psi6 norms and averages')
-ax.set_xlabel('y', size=20)
+ax.set_xlabel('time step', size=20)
 ax.set_ylabel('order parameter', size=20)
 ax.set_title('hexatic order parameters over time')
 ax.legend()
 plt.show()
 figName = 'hexatic order parameters over time'
+fig.savefig(figName)
+
+# Accepted based on probability
+fig, ax = plt.subplots(ncols=1, nrows=1)
+ax.hist(np.asarray(acceptedBasedOnProbs), bins=25, rwidth=0.8, label='accepted based on probability')
+ax.set_xlabel('frame number', size=20)
+ax.set_ylabel('counts', size=20)
+ax.set_title('accepted based on probability')
+ax.legend()
+plt.show()
+figName = 'Accepted based on probability'
 fig.savefig(figName)
 
 # save last frame
@@ -609,8 +665,8 @@ os.chdir(dataDir)
 resultFolders = next(os.walk(dataDir))[1]
 # resultFolders.sort()
 
-mainFolderID = -1  # last folder
-os.chdir(resultFolders[mainFolderID])
+resultFolderID = -1  # last folder
+os.chdir(resultFolders[resultFolderID])
 
 numOfRafts = 218
 spinSpeed = 30
