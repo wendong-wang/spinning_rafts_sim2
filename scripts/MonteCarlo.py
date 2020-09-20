@@ -53,7 +53,7 @@ if parallel_mode == 1:
 else:
     numOfRafts = 218
     spinSpeed = 30
-numOfTimeSteps = 100  # 80000
+numOfTimeSteps = 1000  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -61,10 +61,13 @@ R = raftRadius = 1.5e2  # unit: micron
 masterSwitch = 1  # 1: switch runNDist on after 100 step, 2: switch runNDist_NAngles on after 100 step
 XY_or_ODist = 1   # 0 - XY, 1 - ODist
 ifLastFrameCount = 1  # 0 - using counts from all frames, 1- using counts from the last frame only
-beta = 1000  # inverse of effective temperature
+initial_klDiv_avg = 0.01  # for both global and local klDiv
+initial_klDiv_std = initial_klDiv_avg/2  # for both global and local klDiv
+beta = 5 / initial_klDiv_std  # inverse of effective temperature ~ (5 / target_klDiv_NDist_std)
 batchSize = 1  # how many rafts are moved together
 incrementSize = 50  # unit: radius, initial increment size
 finalIncrementSize = 5  # unit: radius
+
 incrementSwitchStep = 0  # step at which increment size is decreased
 rejectionThreshold = 0.9  # threshold below which we want to keep the rejection rate
 adaptiveIncrement = 0.7  # factor by which we decrease the increment step size each time
@@ -211,19 +214,22 @@ cv.imwrite(outputImageName, currentFrameBGR)
 # try run optimization on x and y distribution first, once they are below a certain threshold, start optimizing NDist
 runNDist = 0  # switch for running NDist or not
 runNDist_NAngles = 0
+annealingSwitch = 0
 if initialPositionMethod == 4:
     if masterSwitch == 1:
         runNDist = 1
+        annealingSwitch = 1
     elif masterSwitch == 2:
         runNDist_NAngles = 1
+        annealingSwitch = 1
     incrementSize = finalIncrementSize
 
-target_klDiv_NDist_avg = 0.001  # 0.036
-target_klDiv_NDist_std = 0.0005  # 0.007
-target_klDiv_NAngles_avg = 0.001
-target_klDiv_NAngles_std = 0.0005
-target_klDiv_global_avg = 0.001  # 0.072  # for X, Y, ODist
-target_klDiv_global_std = 0.0005  # 0.026
+target_klDiv_NDist_avg = initial_klDiv_avg  # 0.036
+target_klDiv_NDist_std = initial_klDiv_std  # 0.007
+target_klDiv_NAngles_avg = initial_klDiv_avg
+target_klDiv_NAngles_std = initial_klDiv_std
+target_klDiv_global_avg = initial_klDiv_avg  # 0.072  # for X, Y, ODist
+target_klDiv_global_std = initial_klDiv_std  # 0.026
 
 acceptedBasedOnProbs = []
 
@@ -353,7 +359,7 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
                     newLocations[raftIDs, :] = newLocations[raftIDs, :] - incrementInXY
                     rejectionRates[currStepNum] += batchSize
 
-    # if the KL divergences of the global distributions are good, then switch on runNDist
+    # if the KL divergences of the global distributions are good, then switch on runNDist or runNDist_NAngles
     if runNDist == 0 and runNDist_NAngles == 0 and currStepNum > 100:
         if XY_or_ODist == 0:
             global_klDiv_BelowThreshold = np.all(klDiv_X[currStepNum - 5: currStepNum] < switchThreshold) and \
@@ -392,12 +398,13 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
                                                   target_klDiv_NAngles_avg + target_klDiv_NAngles_std)
 
         if global_klDiv_target_fulfilled and local_klDiv_target_fulfilled:
-            target_klDiv_NDist_avg = target_klDiv_NDist_avg/10
-            target_klDiv_NDist_std = target_klDiv_NDist_std/10
-            target_klDiv_NAngles_avg = target_klDiv_NAngles_avg/10
-            target_klDiv_NAngles_std = target_klDiv_NAngles_std/10
-            target_klDiv_global_avg = target_klDiv_global_avg/10
-            target_klDiv_global_std = target_klDiv_global_std/10
+            target_klDiv_NDist_avg = target_klDiv_NDist_avg/2
+            target_klDiv_NDist_std = target_klDiv_NDist_std/2
+            target_klDiv_NAngles_avg = target_klDiv_NAngles_avg/2
+            target_klDiv_NAngles_std = target_klDiv_NAngles_std/2
+            target_klDiv_global_avg = target_klDiv_global_avg/2
+            target_klDiv_global_std = target_klDiv_global_std/2
+            beta = 1 / target_klDiv_NDist_std
 
     # After running for "NumOfTestSteps" if the minimum of rejection rate (in last 100 frames) is higher
     # than the "rejectionThreshold" we decrease the increment size
@@ -413,6 +420,16 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
     #     incrementSwitchStep = currStepNum
 
     # incrementSizeArray[currStepNum] = incrementSize
+
+    # annealing like protocol
+    if annealingSwitch == 1:
+        if currStepNum % numOfTimeSteps in [10]:
+            beta = 0.01
+            incrementSize = 0.1
+        else:
+            beta = 5 / target_klDiv_NDist_std
+            incrementSize = finalIncrementSize
+
 
     raftLocations[:, currStepNum + 1, :] = newLocations
 
@@ -595,7 +612,7 @@ hexaticOrderParameterModuliiStds = hexaticOrderParameterModulii.std(axis=0)
 fig, ax = plt.subplots(ncols=1, nrows=1)
 ax.plot(np.arange(numOfTimeSteps-1), hexaticOrderParameterAvgNorms[:-1], label='psi6 averages and norms')
 ax.errorbar(np.arange(numOfTimeSteps-1), hexaticOrderParameterModuliiAvgs[:-1],
-            yerr=hexaticOrderParameterModuliiStds[:-1], errorevery=int(numOfTimeSteps/50),
+            yerr=hexaticOrderParameterModuliiStds[:-1], errorevery=int(numOfTimeSteps/10),
             label='psi6 norms and averages')
 ax.set_xlabel('time step', size=20)
 ax.set_ylabel('order parameter', size=20)
