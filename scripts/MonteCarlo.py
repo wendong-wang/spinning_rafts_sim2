@@ -218,10 +218,8 @@ annealingSwitch = 0
 if initialPositionMethod == 4:
     if masterSwitch == 1:
         runNDist = 1
-        annealingSwitch = 1
     elif masterSwitch == 2:
         runNDist_NAngles = 1
-        annealingSwitch = 1
     incrementSize = finalIncrementSize
 
 target_klDiv_NDist_avg = initial_klDiv_avg  # 0.036
@@ -423,7 +421,7 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
 
     # annealing like protocol
     if annealingSwitch == 1:
-        if currStepNum % numOfTimeSteps in [10, 5000]:
+        if currStepNum % numOfTimeSteps in [5000]:
             beta = 0.01
             incrementSize = 0.1
         else:
