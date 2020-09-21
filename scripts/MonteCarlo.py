@@ -53,7 +53,7 @@ if parallel_mode == 1:
 else:
     numOfRafts = 218
     spinSpeed = 30
-numOfTimeSteps = 1000  # 80000
+numOfTimeSteps = 25000  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -163,7 +163,7 @@ rejectionRates = np.zeros(numOfTimeSteps)
 
 # initialize rafts positions: 1 - random positions, 2 - fixed initial position,
 # 3 - hexagonal fixed position, 4 - load a particular frame from a previous run
-initialPositionMethod = 4
+initialPositionMethod = 1
 currStepNum = 0
 paddingAroundArena = 5  # unit: R
 if initialPositionMethod == 1:
