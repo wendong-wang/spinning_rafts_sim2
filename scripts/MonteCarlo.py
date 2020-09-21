@@ -59,7 +59,7 @@ centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
 
 masterSwitch = 1  # 1: switch runNDist on after 100 step, 2: switch runNDist_NAngles on after 100 step
-XY_or_ODist = 1   # 0 - XY, 1 - ODist
+XY_or_ODist = 0   # 0 - XY, 1 - ODist
 ifLastFrameCount = 1  # 0 - using counts from all frames, 1- using counts from the last frame only
 initial_klDiv_avg = 0.01  # for both global and local klDiv
 initial_klDiv_std = initial_klDiv_avg/2  # for both global and local klDiv
@@ -404,7 +404,7 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
             target_klDiv_NAngles_std = target_klDiv_NAngles_std/2
             target_klDiv_global_avg = target_klDiv_global_avg/2
             target_klDiv_global_std = target_klDiv_global_std/2
-            beta = 1 / target_klDiv_NDist_std
+            beta = 5 / target_klDiv_NDist_std
 
     # After running for "NumOfTestSteps" if the minimum of rejection rate (in last 100 frames) is higher
     # than the "rejectionThreshold" we decrease the increment size
@@ -423,7 +423,7 @@ for currStepNum in progressbar.progressbar(np.arange(0, numOfTimeSteps - 1)):
 
     # annealing like protocol
     if annealingSwitch == 1:
-        if currStepNum % numOfTimeSteps in [10]:
+        if currStepNum % numOfTimeSteps in [10, 5000]:
             beta = 0.01
             incrementSize = 0.1
         else:
