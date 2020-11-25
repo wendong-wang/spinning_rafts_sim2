@@ -10,7 +10,7 @@ import platform
 import datetime
 
 import cv2 as cv
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import progressbar
@@ -74,9 +74,9 @@ capillaryTorquesDistancesAsRows = np.concatenate(
 
 # add angle=360, the same as angle = 0
 capillaryForcesDistancesAsRows = np.concatenate(
-    (capillaryForcesDistancesAsRows, capillaryForcesDistancesAsRows[:, 0].reshape(1301, 1)), axis=1)
+    (capillaryForcesDistancesAsRows, capillaryForcesDistancesAsRows[:, 0].reshape(7701, 1)), axis=1)
 capillaryTorquesDistancesAsRows = np.concatenate(
-    (capillaryTorquesDistancesAsRows, capillaryTorquesDistancesAsRows[:, 0].reshape(1301, 1)), axis=1)
+    (capillaryTorquesDistancesAsRows, capillaryTorquesDistancesAsRows[:, 0].reshape(7701, 1)), axis=1)
 
 # correct for the negative sign of the torque
 capillaryTorquesDistancesAsRows = - capillaryTorquesDistancesAsRows
@@ -126,7 +126,7 @@ magneticMomentOfOneRaft = 1e-8  # unit: A.m**2
 orientationAngles = np.arange(0, 361)  # unit: degree;
 orientationAnglesInRad = np.radians(orientationAngles)
 
-magneticDipoleEEDistances = np.arange(0, 10001) / 1e6  # unit: m
+magneticDipoleEEDistances = capillaryEEDistances  # np.arange(0, 10001) / 1e6  # unit: m
 
 radiusOfRaft = 1.5e-4  # unit: m
 
@@ -220,25 +220,28 @@ lubC = - RforCoeff * lubG
 #                                                                                           capillaryPeakOffset))
 
 # plot the various forces and look for the transition rps
-# densityOfWater = 1e-15 # unit conversion: 1000 kg/m^3 = 1e-15 kg/um^3
-# raftRadius = 1.5e2 # unit: micron
-# magneticFieldRotationRPS = 22
-# omegaBField = magneticFieldRotationRPS * 2 * np.pi
-# hydrodynamicRepulsion = densityOfWater * omegaBField ** 2 * raftRadius ** 7 * 1e-6 / \
-#                         np.arange(raftRadius * 2 + 1, raftRadius * 2 + 1002) ** 3  # unit: N
-# sumOfAllForces = capillaryForcesDistancesAsRows.mean(axis=1) + magDpForceOnAxis.mean(axis=1)[
-#                                                                :1001] + hydrodynamicRepulsion
-# fig, ax = plt.subplots(ncols = 1, nrows = 1)
-# ax.plot(capillaryForcesDistancesAsRows.mean(axis = 1), label = 'angle-averaged capillary force')
-# ax.plot(magDpForceOnAxis.mean(axis = 1)[:1000], label = 'angle-averaged magnetic force')
-# ax.plot(hydrodynamicRepulsion, label = 'hydrodynamic repulsion')
-# ax.plot(capillaryForcesDistancesAsRows.mean(axis = 1) + magDpForceOnAxis.mean(axis = 1)[:1001],
-#         label = 'angle-avaraged sum of magnetic and capillary force')
-# ax.set_xlabel('edge-edge distance (um)')
-# ax.set_ylabel('Force (N)')
-# ax.set_title('spin speed {} rps'.format(magneticFieldRotationRPS))
-# ax.plot(sumOfAllForces, label = 'sum of angle-averaged magnetic and capillary forces and hydrodynamic force ')
-# ax.legend()
+densityOfWater = 1e-15  # unit conversion: 1000 kg/m^3 = 1e-15 kg/um^3
+raftRadius = 1.5e2  # unit: micron
+magneticFieldRotationRPS = 22
+omegaBField = magneticFieldRotationRPS * 2 * np.pi
+hydrodynamicRepulsion = densityOfWater * omegaBField ** 2 * raftRadius ** 7 * 1e-24 / \
+                        magneticDipoleCCDistances ** 3  # unit: N
+sumOfAllForces = capillaryForcesDistancesAsRows.mean(axis=1) + magDpForceOnAxis.mean(axis=1) \
+                 + hydrodynamicRepulsion
+startDistID = 50
+endDistID = 300
+fig, ax = plt.subplots(ncols=1, nrows=1)
+ax.plot(capillaryForcesDistancesAsRows.mean(axis=1)[startDistID:endDistID], label='angle-averaged capillary force')
+ax.plot(magDpForceOnAxis.mean(axis=1)[startDistID:endDistID], label='angle-averaged magnetic force')
+ax.plot(hydrodynamicRepulsion[startDistID:endDistID], label='hydrodynamic repulsion')
+ax.plot(capillaryForcesDistancesAsRows.mean(axis=1)[startDistID:endDistID]
+        + magDpForceOnAxis.mean(axis=1)[startDistID:endDistID],
+        label='angle-averaged sum of magnetic and capillary force')
+ax.set_xlabel('edge-edge distance - {} (um) '.format(startDistID))
+ax.set_ylabel('Force (N)')
+ax.set_title('spin speed {} rps'.format(magneticFieldRotationRPS))
+ax.legend()
+fig.show()
 
 
 # %% simulation of many rafts
