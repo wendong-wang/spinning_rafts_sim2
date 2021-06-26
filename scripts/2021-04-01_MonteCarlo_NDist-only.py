@@ -51,9 +51,9 @@ if parallel_mode == 1:
     numOfRafts = int(sys.argv[1])
     spinSpeed = int(sys.argv[2])
 else:
-    numOfRafts = 218
-    spinSpeed = 60
-numOfTimeSteps = 50000  # 80000
+    numOfRafts = 251
+    spinSpeed = 10
+numOfTimeSteps = 10  # 80000
 arenaSize = 1.5e4  # unit: micron
 centerOfArena = np.array([arenaSize / 2, arenaSize / 2])
 R = raftRadius = 1.5e2  # unit: micron
@@ -94,8 +94,8 @@ binEdgesY = list(np.arange(0, arenaSize/R + binSize_XY, binSize_XY))
 # load target distributions
 experimental_generated = 0  # 0: experimental 20s data, 1: generated hexagonal patterns
 if experimental_generated == 0:
-    expDuration = 20 #s
-    expDataDir = os.path.join(projectDir, '2020-09-14_exp patterns', '{}s'.format(expDuration))
+    expDuration = 1 #s
+    expDataDir = os.path.join(projectDir, '2019-11-12_exp_patterns_sym6_tiling', '{}s'.format(expDuration))
     os.chdir(expDataDir)
     shelfOfTarget = shelve.open('target_{}s_{}Rafts_{}rps_reprocessed'.format(expDuration, numOfRafts, spinSpeed))
 elif experimental_generated == 1:

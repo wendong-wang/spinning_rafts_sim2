@@ -9,7 +9,7 @@ import scipy.io
 import os
 
 #%% capillary forces
-if os.getcwd() == 'D:\\simulationFolder\\spinning_rafts_sim2\\':
+if os.getcwd() == 'D:\\repos\\spinning_rafts_sim2\\':
     os.chdir('2020-09-08_capillaryForceCalculations-sym6_radiusScaling')
 result = scipy.io.loadmat('Results_sym6_arcAngle30_eeDistAt1R_angleCount60_radiusCount46_treated')
 capForceAngleAveraged = result['angleAveragedForceSqueezed']  # unit: nN
@@ -23,7 +23,7 @@ radiiForCapForceAteeR = (radiiForCapForce * 1e-6).reshape(capForceAngleAveragedA
 #%% magnetic and hydrodynamic lift force calculated at specified eeDist in unit of R
 # eeDistInR = 0.5  # unit: radius
 miu0 = 4 * np.pi * 1e-7  # unit: N/A**2, or T.m/A, or H/m
-magneticMomentPerUnitArea = 1e-8 / (np.pi * (300 * 1e-6) ** 2)  # unit: A (A.m**2/m**2)
+magneticMomentPerUnitArea = 1e-8 / (np.pi * (150 * 1e-6) ** 2)  # unit: A (A.m**2/m**2)
 R = radiiForCapForceAteeR  # unit: m. old: np.arange(1, 10001) / 1e6
 densityOfWater = 1e3  # unit: 1000 kg/m^3
 # magDpForceOnAxisAngleAveraged_halfR = np.zeros(len(R))  # unit: N
@@ -73,7 +73,7 @@ np.savetxt(filename, radiiCapMagHydroForces, delimiter=',',
 
 #%% magnetic and hydrodynamic lift force calculation based on fixed range of ee-distances
 miu0 = 4 * np.pi * 1e-7  # unit: N/A**2, or T.m/A, or H/m
-magneticMomentPerUnitArea = 1e-8 / (np.pi * (300 * 1e-6) ** 2)  # unit: A (A.m**2/m**2)
+magneticMomentPerUnitArea = 1e-8 / (np.pi * (150 * 1e-6) ** 2)  # unit: A (A.m**2/m**2)
 radiiOfRaft = np.arange(1, 10001) / 1e6  # unit: m
 eeDists = np.arange(0, 52) / 1e6  # unit: m
 magDpForceOnAxisAngleAveraged = np.zeros((len(radiiOfRaft), len(eeDists)))  # unit: N
